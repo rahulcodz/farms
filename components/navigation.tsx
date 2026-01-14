@@ -20,8 +20,8 @@ export default function Navigation() {
               <span className="font-[family-name:var(--font-merriweather)] font-bold text-2xl text-[#1A2E1A] tracking-tight">AgroAI</span>
             </Link>
             <div className="hidden lg:flex space-x-8">
-              <Link 
-                href="/diagnosis" 
+              <Link
+                href="/diagnosis"
                 className={cn(
                   "text-[#4B634B] hover:text-[#2E7D32] transition-colors font-medium text-sm",
                   pathname === "/diagnosis" && "text-[#2E7D32]"
@@ -29,8 +29,8 @@ export default function Navigation() {
               >
                 Diagnosis
               </Link>
-              <Link 
-                href="#" 
+              <Link
+                href="#"
                 className={cn(
                   "text-[#4B634B] hover:text-[#2E7D32] transition-colors font-medium text-sm",
                   pathname === "/chat" && "text-[#2E7D32]"
@@ -38,8 +38,8 @@ export default function Navigation() {
               >
                 Expert Chat
               </Link>
-              <Link 
-                href="#pricing" 
+              <Link
+                href="#pricing"
                 className={cn(
                   "text-[#4B634B] hover:text-[#2E7D32] transition-colors font-medium text-sm",
                   pathname === "/pricing" && "text-[#2E7D32]"
@@ -47,8 +47,8 @@ export default function Navigation() {
               >
                 Always Free
               </Link>
-              <Link 
-                href="#faq" 
+              <Link
+                href="#faq"
                 className={cn(
                   "text-[#4B634B] hover:text-[#2E7D32] transition-colors font-medium text-sm",
                   pathname === "/faq" && "text-[#2E7D32]"
@@ -61,10 +61,10 @@ export default function Navigation() {
           <div className="flex items-center gap-4">
             <div className="relative hidden sm:block">
               <Select defaultValue="en">
-                <SelectTrigger className="appearance-none bg-transparent border-none text-[#4B634B] text-sm font-medium focus:ring-0 cursor-pointer pr-8 pl-6 w-auto">
-                  <div className="absolute left-0 pointer-events-none">
-                <Globe className="w-4 h-4" />
-              </div>
+                <SelectTrigger className="relative appearance-none bg-transparent border text-[#4B634B] text-sm font-medium focus:ring-0 cursor-pointer pl-10 pr-8 py-2 w-auto min-w-[150px] rounded-full flex items-center gap-2">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
+                    <Globe className="w-4 h-4" />
+                  </div>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

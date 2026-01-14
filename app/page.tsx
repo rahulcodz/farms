@@ -34,10 +34,10 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#FDFDFB]"></div>
         </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#2E7D32]/10 border border-[#2E7D32]/20 text-[#1B5E20] font-semibold text-sm mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/90 border border-white/70 text-[#2E7D32] font-semibold text-sm mb-6 shadow-sm">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2E7D32] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2E7D32]"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2E7D32]/70 opacity-70"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2E7D32]/80"></span>
             </span>
             Free AI Precision Agriculture for Everyone
           </div>
@@ -77,77 +77,98 @@ export default function Home() {
             <h2 className="font-[family-name:var(--font-merriweather)] text-3xl md:text-4xl font-bold text-[#1A2E1A] mb-4">The Future of Agriculture</h2>
             <p className="text-[#4B634B] text-lg max-w-2xl mx-auto">Advanced technology meets traditional wisdom to provide you with the most accurate farming insights available.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="p-8 rounded-3xl border border-gray-100 bg-[#FDFDFB] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] transition-all duration-300 group">
-              <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center text-[#2E7D32] mb-6 group-hover:bg-[#2E7D32] group-hover:text-white transition-colors">
-                <Sparkles className="w-8 h-8" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+            <Card className="relative p-6 sm:p-8 rounded-3xl border border-gray-100 bg-[#FDFDFB] hover:border-[#2E7D32]/30 hover:shadow-[0_10px_40px_-10px_rgba(46,125,50,0.15)] transition-all duration-500 ease-out group cursor-pointer overflow-hidden">
+              {/* Background gradient on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-green-50/0 to-green-50/0 group-hover:from-green-50/50 group-hover:to-transparent transition-all duration-500 rounded-3xl"></div>
+              
+              <div className="relative z-10">
+                <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center text-[#2E7D32] mb-6 group-hover:bg-[#2E7D32] group-hover:text-white group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm group-hover:shadow-lg">
+                  <Sparkles className="w-8 h-8 group-hover:animate-pulse" />
+                </div>
+                <CardHeader className="p-0">
+                  <CardTitle className="text-xl font-bold mb-3 group-hover:text-[#2E7D32] transition-colors duration-300">
+                    Multi-Factor Diagnosis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <CardDescription className="text-[#4B634B] leading-relaxed mb-4 group-hover:text-[#1A2E1A] transition-colors duration-300">
+                    Combine crop imaging, soil analysis, and local weather patterns for high-precision diagnostic accuracy.
+                  </CardDescription>
+                  <ul className="mt-4 space-y-2.5 text-sm font-medium text-[#4B634B]">
+                    <li className="flex items-center gap-2 group-hover:translate-x-1 transition-transform duration-300">
+                      <CheckCircle2 className="w-5 h-5 text-[#2E7D32] group-hover:scale-110 transition-transform duration-300" />
+                      <span>Satellite imagery analysis</span>
+                    </li>
+                    <li className="flex items-center gap-2 group-hover:translate-x-1 transition-transform duration-300 delay-75">
+                      <CheckCircle2 className="w-5 h-5 text-[#2E7D32] group-hover:scale-110 transition-transform duration-300 delay-75" />
+                      <span>Real-time soil metrics</span>
+                    </li>
+                  </ul>
+                </CardContent>
               </div>
-              <CardHeader className="p-0">
-                <CardTitle className="text-xl font-bold mb-3">Multi-Factor Diagnosis</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <CardDescription className="text-[#4B634B] leading-relaxed mb-4">
-                  Combine crop imaging, soil analysis, and local weather patterns for high-precision diagnostic accuracy.
-                </CardDescription>
-                <ul className="mt-4 space-y-2 text-sm font-medium text-[#4B634B]">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-[#2E7D32]" />
-                    Satellite imagery analysis
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-[#2E7D32]" />
-                    Real-time soil metrics
-                  </li>
-                </ul>
-              </CardContent>
             </Card>
 
-            <Card className="p-8 rounded-3xl border border-gray-100 bg-[#FDFDFB] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] transition-all duration-300 group">
-              <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 mb-6 group-hover:bg-orange-600 group-hover:text-white transition-colors">
-                <Calculator className="w-8 h-8" />
+            <Card className="relative p-6 sm:p-8 rounded-3xl border border-gray-100 bg-[#FDFDFB] hover:border-orange-300/50 hover:shadow-[0_10px_40px_-10px_rgba(192,86,33,0.15)] transition-all duration-500 ease-out group cursor-pointer overflow-hidden">
+              {/* Background gradient on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-50/0 to-orange-50/0 group-hover:from-orange-50/50 group-hover:to-transparent transition-all duration-500 rounded-3xl"></div>
+              
+              <div className="relative z-10">
+                <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 mb-6 group-hover:bg-orange-600 group-hover:text-white group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm group-hover:shadow-lg">
+                  <Calculator className="w-8 h-8 group-hover:animate-pulse" />
+                </div>
+                <CardHeader className="p-0">
+                  <CardTitle className="text-xl font-bold mb-3 group-hover:text-orange-600 transition-colors duration-300">
+                    Actionable Treatment Plans
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <CardDescription className="text-[#4B634B] leading-relaxed mb-4 group-hover:text-[#1A2E1A] transition-colors duration-300">
+                    Step-by-step recovery plans including localized cost estimations for fertilizers, pesticides, and labor.
+                  </CardDescription>
+                  <ul className="mt-4 space-y-2.5 text-sm font-medium text-[#4B634B]">
+                    <li className="flex items-center gap-2 group-hover:translate-x-1 transition-transform duration-300">
+                      <CheckCircle2 className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform duration-300" />
+                      <span>Cost transparency</span>
+                    </li>
+                    <li className="flex items-center gap-2 group-hover:translate-x-1 transition-transform duration-300 delay-75">
+                      <CheckCircle2 className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform duration-300 delay-75" />
+                      <span>Inventory management</span>
+                    </li>
+                  </ul>
+                </CardContent>
               </div>
-              <CardHeader className="p-0">
-                <CardTitle className="text-xl font-bold mb-3">Actionable Treatment Plans</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <CardDescription className="text-[#4B634B] leading-relaxed mb-4">
-                  Step-by-step recovery plans including localized cost estimations for fertilizers, pesticides, and labor.
-                </CardDescription>
-                <ul className="mt-4 space-y-2 text-sm font-medium text-[#4B634B]">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-orange-600" />
-                    Cost transparency
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-orange-600" />
-                    Inventory management
-                  </li>
-                </ul>
-              </CardContent>
             </Card>
 
-            <Card className="p-8 rounded-3xl border border-gray-100 bg-[#FDFDFB] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] transition-all duration-300 group">
-              <div className="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <Bot className="w-8 h-8" />
+            <Card className="relative p-6 sm:p-8 rounded-3xl border border-gray-100 bg-[#FDFDFB] hover:border-blue-300/50 hover:shadow-[0_10px_40px_-10px_rgba(37,99,235,0.15)] transition-all duration-500 ease-out group cursor-pointer overflow-hidden">
+              {/* Background gradient on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-blue-50/0 group-hover:from-blue-50/50 group-hover:to-transparent transition-all duration-500 rounded-3xl"></div>
+              
+              <div className="relative z-10">
+                <div className="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm group-hover:shadow-lg">
+                  <Bot className="w-8 h-8 group-hover:animate-pulse" />
+                </div>
+                <CardHeader className="p-0">
+                  <CardTitle className="text-xl font-bold mb-3 group-hover:text-blue-600 transition-colors duration-300">
+                    24/7 AI Agronomist Chat
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <CardDescription className="text-[#4B634B] leading-relaxed mb-4 group-hover:text-[#1A2E1A] transition-colors duration-300">
+                    Instant answers to any agricultural questions. Our AI is trained on decades of agronomic research.
+                  </CardDescription>
+                  <ul className="mt-4 space-y-2.5 text-sm font-medium text-[#4B634B]">
+                    <li className="flex items-center gap-2 group-hover:translate-x-1 transition-transform duration-300">
+                      <CheckCircle2 className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform duration-300" />
+                      <span>Localized advice</span>
+                    </li>
+                    <li className="flex items-center gap-2 group-hover:translate-x-1 transition-transform duration-300 delay-75">
+                      <CheckCircle2 className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform duration-300 delay-75" />
+                      <span>Multi-language support</span>
+                    </li>
+                  </ul>
+                </CardContent>
               </div>
-              <CardHeader className="p-0">
-                <CardTitle className="text-xl font-bold mb-3">24/7 AI Agronomist Chat</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <CardDescription className="text-[#4B634B] leading-relaxed mb-4">
-                  Instant answers to any agricultural questions. Our AI is trained on decades of agronomic research.
-                </CardDescription>
-                <ul className="mt-4 space-y-2 text-sm font-medium text-[#4B634B]">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                    Localized advice
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                    Multi-language support
-                  </li>
-                </ul>
-              </CardContent>
             </Card>
           </div>
         </div>

@@ -65,48 +65,48 @@ export default function DiagnosisPage() {
 
   return (
     <div className="min-h-screen bg-[#F0FDF4] dark:bg-[#111827] text-gray-800 dark:text-gray-100 transition-colors duration-200">
-      <main className="flex-grow py-10 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
+      <main className="flex-grow py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="md:flex md:items-center md:justify-between mb-8">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-3xl font-bold leading-7 text-gray-900 dark:text-white font-[family-name:var(--font-merriweather)] sm:text-4xl sm:truncate">
+          <div className="mb-8 sm:mb-12">
+            <div className="max-w-3xl">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight text-gray-900 dark:text-white font-[family-name:var(--font-merriweather)] mb-3 sm:mb-4">
                 Comprehensive Multi-Factor Diagnosis
               </h2>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 leading-relaxed">
                 Upload multi-modal data including crop visuals, soil reports, and environmental context for maximum AI analysis accuracy.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-6 lg:space-y-8">
               {/* Evidence Sources */}
               <Card className="bg-white dark:bg-[#1F2937] rounded-2xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)] border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center gap-2">
-                      <Upload className="w-5 h-5 text-[#2F855A]" />
+                <CardHeader className="pb-4 sm:pb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <CardTitle className="text-base sm:text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center gap-2">
+                      <Upload className="w-5 h-5 text-[#2F855A] flex-shrink-0" />
                       Evidence Sources
                     </CardTitle>
-                    <span className="text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2.5 py-0.5 rounded-full w-fit">
                       Step 1 of 3
                     </span>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 sm:space-y-6">
                   {/* Crop Images */}
                   <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
-                    <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <div className="bg-gray-50 dark:bg-gray-800/50 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                       <div className="flex items-center gap-2">
-                        <Leaf className="w-5 h-5 text-[#2F855A]" />
+                        <Leaf className="w-5 h-5 text-[#2F855A] flex-shrink-0" />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">1. Crop Images</span>
                       </div>
                       <span className="text-xs text-gray-500">Visual Disease Detection</span>
                     </div>
-                    <div className="p-4">
-                      <label className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-xl hover:border-[#2F855A] dark:hover:border-[#2F855A] transition-colors cursor-pointer group bg-gray-50/50 dark:bg-gray-800/30">
+                    <div className="p-4 sm:p-6">
+                      <label className="flex justify-center px-4 sm:px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-xl hover:border-[#2F855A] dark:hover:border-[#2F855A] transition-colors cursor-pointer group bg-gray-50/50 dark:bg-gray-800/30">
                         <div className="space-y-2 text-center">
                           <ImageIcon className="mx-auto h-10 w-10 text-gray-400 group-hover:text-[#2F855A] transition-colors" />
                           <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
@@ -125,20 +125,21 @@ export default function DiagnosisPage() {
                         />
                       </label>
                       {cropImages.length > 0 && (
-                        <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
+                        <div className="mt-4 sm:mt-6 flex gap-3 sm:gap-4 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                           {cropImages.map((image, index) => (
-                            <div key={index} className="relative group flex-shrink-0 w-24 h-24">
+                            <div key={index} className="relative group flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24">
                               <Image
                                 src={image}
                                 alt={`Crop image ${index + 1}`}
                                 width={96}
                                 height={96}
-                                className="object-cover pointer-events-none group-hover:opacity-75 w-24 h-24 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
+                                className="object-cover pointer-events-none group-hover:opacity-75 w-full h-full rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
                               />
                               <button
                                 onClick={() => handleImageRemove(index)}
-                                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 focus:outline-none"
+                                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600 focus:outline-none transition-colors"
                                 type="button"
+                                aria-label="Remove image"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -150,39 +151,39 @@ export default function DiagnosisPage() {
                   </div>
 
                   {/* Soil and Weather Uploads */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     {/* Soil Report */}
-                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all">
+                      <div className="bg-gray-50 dark:bg-gray-800/50 px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-700">
                         <div className="flex items-center gap-2">
-                          <Layers className="w-5 h-5 text-[#C05621]" />
+                          <Layers className="w-5 h-5 text-[#C05621] flex-shrink-0" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">2. Soil Report/Photos</span>
                         </div>
                       </div>
-                      <label className="p-4 flex flex-col items-center justify-center text-center h-28 cursor-pointer group">
-                        <div className="rounded-full bg-orange-50 dark:bg-orange-900/20 p-2 group-hover:scale-110 transition-transform">
-                          <Upload className="w-6 h-6 text-[#C05621]" />
+                      <label className="p-4 sm:p-5 flex flex-col items-center justify-center text-center min-h-[120px] sm:min-h-[140px] cursor-pointer group">
+                        <div className="rounded-full bg-orange-50 dark:bg-orange-900/20 p-2.5 sm:p-3 group-hover:scale-110 transition-transform">
+                          <Upload className="w-5 h-5 sm:w-6 sm:h-6 text-[#C05621]" />
                         </div>
-                        <span className="text-xs text-gray-500 mt-2 font-medium">Upload PDF or Soil Photo</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">Nutrient Analysis</span>
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-3 font-medium">Upload PDF or Soil Photo</span>
+                        <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 mt-1">Nutrient Analysis</span>
                         <input type="file" accept=".pdf,image/*" className="hidden" />
                       </label>
                     </div>
 
                     {/* Weather & Sky */}
-                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all">
+                      <div className="bg-gray-50 dark:bg-gray-800/50 px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-gray-700">
                         <div className="flex items-center gap-2">
-                          <Cloud className="w-5 h-5 text-blue-500" />
+                          <Cloud className="w-5 h-5 text-blue-500 flex-shrink-0" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">3. Weather & Sky</span>
                         </div>
                       </div>
-                      <label className="p-4 flex flex-col items-center justify-center text-center h-28 cursor-pointer group">
-                        <div className="rounded-full bg-blue-50 dark:bg-blue-900/20 p-2 group-hover:scale-110 transition-transform">
-                          <ImageIcon className="w-6 h-6 text-blue-500" />
+                      <label className="p-4 sm:p-5 flex flex-col items-center justify-center text-center min-h-[120px] sm:min-h-[140px] cursor-pointer group">
+                        <div className="rounded-full bg-blue-50 dark:bg-blue-900/20 p-2.5 sm:p-3 group-hover:scale-110 transition-transform">
+                          <ImageIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
                         </div>
-                        <span className="text-xs text-gray-500 mt-2 font-medium">Upload Sky Conditions</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">Atmospheric Risk</span>
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-3 font-medium">Upload Sky Conditions</span>
+                        <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 mt-1">Atmospheric Risk</span>
                         <input type="file" accept="image/*" className="hidden" />
                       </label>
                     </div>
@@ -192,25 +193,25 @@ export default function DiagnosisPage() {
 
               {/* Crop & Environmental Details */}
               <Card className="bg-white dark:bg-[#1F2937] rounded-2xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)] border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center gap-2">
-                    <Upload className="w-5 h-5 text-[#2F855A]" />
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-base sm:text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-[#2F855A] flex-shrink-0" />
                     Crop & Environmental Details
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                     {/* Crop Type */}
                     <div className="sm:col-span-3">
-                      <Label htmlFor="crop-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <Label htmlFor="crop-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Crop Type
                       </Label>
-                      <div className="relative rounded-md shadow-sm">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                           <Sprout className="w-5 h-5 text-gray-400" />
                         </div>
                         <Select value={cropType} onValueChange={setCropType}>
-                          <SelectTrigger className="pl-10 w-full">
+                          <SelectTrigger className="pl-10 w-full h-11">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -227,15 +228,15 @@ export default function DiagnosisPage() {
 
                     {/* Growth Stage */}
                     <div className="sm:col-span-3">
-                      <Label htmlFor="growth-stage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <Label htmlFor="growth-stage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Growth Stage
                       </Label>
-                      <div className="relative rounded-md shadow-sm">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                           <Clock className="w-5 h-5 text-gray-400" />
                         </div>
                         <Select value={growthStage} onValueChange={setGrowthStage}>
-                          <SelectTrigger className="pl-10 w-full">
+                          <SelectTrigger className="pl-10 w-full h-11">
                             <SelectValue placeholder="Select growth stage" />
                           </SelectTrigger>
                           <SelectContent>
@@ -251,12 +252,12 @@ export default function DiagnosisPage() {
 
                     {/* Location */}
                     <div className="sm:col-span-6">
-                      <Label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <Label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Farm Location
                       </Label>
-                      <div className="flex rounded-md shadow-sm">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
                         <div className="relative flex-grow focus-within:z-10">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                             <MapPin className="w-5 h-5 text-gray-400" />
                           </div>
                           <Input
@@ -266,31 +267,33 @@ export default function DiagnosisPage() {
                             placeholder="Start typing address or coordinates..."
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
-                            className="rounded-none rounded-l-md pl-10"
+                            className="pl-10 sm:rounded-none sm:rounded-l-md h-11"
                           />
                         </div>
                         <Button
                           type="button"
                           variant="outline"
                           onClick={handleLocationDetect}
-                          className="-ml-px rounded-none rounded-r-md border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
+                          className="sm:-ml-px sm:rounded-none sm:rounded-r-md border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 h-11"
                         >
-                          <Navigation className="w-4 h-4 mr-2" />
-                          Locate Me
+                          <Navigation className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Locate Me</span>
+                          <span className="sm:hidden">Locate</span>
                         </Button>
                       </div>
                     </div>
                   </div>
 
                   {/* Run Analysis Button */}
-                  <div className="flex justify-end pt-4">
-                    <Link href="/diagnosis/report">
+                  <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <Link href="/diagnosis/report" className="w-full sm:w-auto">
                       <Button
                         type="button"
-                        className="bg-[#2F855A] hover:bg-green-700 text-white px-8 py-3 rounded-xl shadow-sm transition-all transform hover:scale-105"
+                        className="w-full sm:w-auto bg-[#2F855A] hover:bg-green-700 text-white px-6 sm:px-8 py-3 rounded-xl shadow-sm transition-all transform hover:scale-105"
                       >
                         <BarChart3 className="w-5 h-5 mr-2" />
-                        Run Comprehensive Analysis
+                        <span className="hidden sm:inline">Run Comprehensive Analysis</span>
+                        <span className="sm:hidden">Run Analysis</span>
                       </Button>
                     </Link>
                   </div>
@@ -299,16 +302,16 @@ export default function DiagnosisPage() {
             </div>
 
             {/* Sidebar */}
-            <div className="lg:col-span-1 space-y-6">
+            <div className="lg:col-span-1 space-y-6 lg:space-y-8">
               {/* Agricultural Tips */}
               <Card className="bg-white dark:bg-[#1F2937] rounded-2xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)] border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-[#C05621]" />
-                    Agricultural Tips: Tomato
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-[#C05621] flex-shrink-0" />
+                    <span className="text-sm sm:text-base">Agricultural Tips: Tomato</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4">
                   <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-800/30 hover:shadow-md transition-all cursor-default group">
                     <div className="flex-shrink-0 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-sm group-hover:bg-[#2F855A] transition-colors">
                       <Scissors className="w-5 h-5 text-[#2F855A] group-hover:text-white" />
@@ -348,17 +351,17 @@ export default function DiagnosisPage() {
               </Card>
 
               {/* Weather Alert */}
-              <Card className="bg-gradient-to-br from-[#2F855A] to-green-800 rounded-2xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)] p-6 text-white relative overflow-hidden">
+              <Card className="bg-gradient-to-br from-[#2F855A] to-green-800 rounded-2xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)] p-5 sm:p-6 text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-10 rounded-full"></div>
-                <h4 className="text-sm font-medium opacity-90 mb-2">Local Weather Alert</h4>
-                <div className="flex items-center">
-                  <CloudRain className="w-10 h-10 mr-3" />
+                <h4 className="text-xs sm:text-sm font-medium opacity-90 mb-3">Local Weather Alert</h4>
+                <div className="flex items-center gap-3 mb-3">
+                  <CloudRain className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0" />
                   <div>
-                    <p className="text-xl font-bold">Heavy Rain</p>
+                    <p className="text-lg sm:text-xl font-bold">Heavy Rain</p>
                     <p className="text-xs opacity-80">Expected in 2 hours</p>
                   </div>
                 </div>
-                <p className="mt-3 text-xs opacity-90 leading-relaxed">
+                <p className="text-xs sm:text-sm opacity-90 leading-relaxed">
                   High humidity following rain increases risk of fungal infections. Check drainage.
                 </p>
               </Card>
