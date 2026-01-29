@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -26,6 +27,13 @@ import {
   TrendingUp,
   Users,
   Monitor,
+  AlertCircle,
+  Image as ImageIcon,
+  Layers,
+  Cloud,
+  ChevronDown,
+  X,
+  MessageSquare,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -36,18 +44,461 @@ interface ChatMessage {
   timestamp: string
 }
 
+interface DiagnosisReport {
+  reportId: string
+  timestamp: string
+  cropInfo: {
+    cropType: string
+    growthStage: string
+    location: string
+    soilCondition: string
+    weatherCondition: string
+    description?: string
+  }
+  analysis: {
+    diagnosis: {
+      diseaseName: string
+      severity: "Low" | "Moderate" | "High" | "Critical"
+      confidence: number
+      description: string
+      scientificName?: string
+    }
+    environmentalFactors: {
+      humidity: {
+        value: string
+        riskLevel: "LOW" | "MODERATE" | "HIGH"
+        impact: string
+      }
+      temperature: {
+        value: string
+        riskLevel: "LOW" | "MODERATE" | "HIGH"
+        impact: string
+      }
+      overallRisk: number
+    }
+    impact: {
+      yieldLoss: string
+      timeframe: string
+      description: string
+    }
+    treatmentPlan: {
+      immediate: Array<{
+        title: string
+        description: string
+        timeline: string
+        type: "organic" | "chemical" | "cultural"
+        products?: string[]
+      }>
+      followUp: Array<{
+        title: string
+        description: string
+        timeline: string
+        type: "organic" | "chemical" | "cultural"
+      }>
+      prevention: Array<{
+        title: string
+        description: string
+        timeline: string
+        type: "organic" | "chemical" | "cultural"
+      }>
+    }
+    recommendations: {
+      pruning?: string
+      watering?: string
+      fertilization?: string
+      monitoring?: string
+    }
+  }
+  imageCount: number
+  imagePreviews?: {
+    cropImages: string[]
+    soilReport: string | null
+    weatherImage: string | null
+  }
+}
+
 export default function DiagnosisReportPage() {
+  const router = useRouter()
+  const [report, setReport] = useState<DiagnosisReport | null>(null)
   const [message, setMessage] = useState("")
   const [filter, setFilter] = useState("all")
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      text: "Hello! I've analyzed your Tomato Late Blight report. How can I help you implement the treatment plan?",
-      sender: "ai",
-      timestamp: "10:42 AM",
-    },
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isChatExpanded, setIsChatExpanded] = useState(true)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+
+  // Convert markdown-style formatting to HTML
+  const formatMessage = (text: string): string => {
+    const lines = text.split('\n')
+    const processedLines: string[] = []
+    let currentList: { items: string[], isNumbered: boolean } | null = null
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      
+      // Check for headers
+      if (line.match(/^### /)) {
+        if (currentList) {
+          const listTag = currentList.isNumbered ? 'ol' : 'ul'
+          const listClass = currentList.isNumbered 
+            ? 'list-decimal ml-6 mb-2 space-y-1' 
+            : 'list-disc ml-6 mb-2 space-y-1'
+          processedLines.push(`<${listTag} class="${listClass}">${currentList.items.join('')}</${listTag}>`)
+          currentList = null
+        }
+        processedLines.push(`<h3 class="font-bold text-base mt-4 mb-2 text-gray-900 dark:text-white">${line.replace(/^### /, '')}</h3>`)
+        continue
+      }
+      if (line.match(/^## /)) {
+        if (currentList) {
+          const listTag = currentList.isNumbered ? 'ol' : 'ul'
+          const listClass = currentList.isNumbered 
+            ? 'list-decimal ml-6 mb-2 space-y-1' 
+            : 'list-disc ml-6 mb-2 space-y-1'
+          processedLines.push(`<${listTag} class="${listClass}">${currentList.items.join('')}</${listTag}>`)
+          currentList = null
+        }
+        processedLines.push(`<h2 class="font-bold text-lg mt-4 mb-2 text-gray-900 dark:text-white">${line.replace(/^## /, '')}</h2>`)
+        continue
+      }
+      if (line.match(/^# /)) {
+        if (currentList) {
+          const listTag = currentList.isNumbered ? 'ol' : 'ul'
+          const listClass = currentList.isNumbered 
+            ? 'list-decimal ml-6 mb-2 space-y-1' 
+            : 'list-disc ml-6 mb-2 space-y-1'
+          processedLines.push(`<${listTag} class="${listClass}">${currentList.items.join('')}</${listTag}>`)
+          currentList = null
+        }
+        processedLines.push(`<h1 class="font-bold text-xl mt-4 mb-2 text-gray-900 dark:text-white">${line.replace(/^# /, '')}</h1>`)
+        continue
+      }
+      
+      // Check for numbered list
+      const numberedMatch = line.match(/^(\d+)\.\s+(.*)$/)
+      if (numberedMatch) {
+        if (!currentList || !currentList.isNumbered) {
+          if (currentList) {
+            const listTag = 'ul'
+            const listClass = 'list-disc ml-6 mb-2 space-y-1'
+            processedLines.push(`<${listTag} class="${listClass}">${currentList.items.join('')}</${listTag}>`)
+          }
+          currentList = { items: [], isNumbered: true }
+        }
+        currentList.items.push(`<li class="mb-1">${numberedMatch[2]}</li>`)
+        continue
+      }
+      
+      // Check for bullet list
+      const bulletMatch = line.match(/^[-*]\s+(.*)$/)
+      if (bulletMatch) {
+        if (!currentList || currentList.isNumbered) {
+          if (currentList) {
+            const listTag = 'ol'
+            const listClass = 'list-decimal ml-6 mb-2 space-y-1'
+            processedLines.push(`<${listTag} class="${listClass}">${currentList.items.join('')}</${listTag}>`)
+          }
+          currentList = { items: [], isNumbered: false }
+        }
+        currentList.items.push(`<li class="mb-1">${bulletMatch[1]}</li>`)
+        continue
+      }
+      
+      // Regular line
+      if (currentList) {
+        const listTag = currentList.isNumbered ? 'ol' : 'ul'
+        const listClass = currentList.isNumbered 
+          ? 'list-decimal ml-6 mb-2 space-y-1' 
+          : 'list-disc ml-6 mb-2 space-y-1'
+        processedLines.push(`<${listTag} class="${listClass}">${currentList.items.join('')}</${listTag}>`)
+        currentList = null
+      }
+      
+      if (line.trim()) {
+        processedLines.push(line)
+      } else {
+        processedLines.push('')
+      }
+    }
+    
+    // Close any remaining list
+    if (currentList) {
+      const listTag = currentList.isNumbered ? 'ol' : 'ul'
+      const listClass = currentList.isNumbered 
+        ? 'list-decimal ml-6 mb-2 space-y-1' 
+        : 'list-disc ml-6 mb-2 space-y-1'
+      processedLines.push(`<${listTag} class="${listClass}">${currentList.items.join('')}</${listTag}>`)
+    }
+    
+    // Join lines and apply inline formatting
+    let formatted = processedLines.join('\n')
+      // Bold and italic
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      // Code blocks
+      .replace(/`(.*?)`/g, '<code class="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs">$1</code>')
+      // Line breaks (process last to avoid breaking other formatting)
+      .replace(/\n/g, '<br />')
+    
+    return formatted
+  }
+
+  // Download PDF Report
+  const downloadPDF = async () => {
+    if (!report || isGeneratingPDF) return
+
+    setIsGeneratingPDF(true)
+    try {
+      // Dynamic import to avoid SSR issues
+      const { default: jsPDF } = await import('jspdf')
+      const doc = new jsPDF('p', 'mm', 'a4')
+      
+      let yPosition = 20
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 15
+      const contentWidth = pageWidth - 2 * margin
+
+      // Helper function to add new page if needed
+      const checkPageBreak = (requiredHeight: number) => {
+        if (yPosition + requiredHeight > pageHeight - margin) {
+          doc.addPage()
+          yPosition = margin
+          return true
+        }
+        return false
+      }
+
+      // Helper function to add text with word wrap
+      const addText = (text: string, fontSize: number, isBold: boolean = false, color: string = '#000000') => {
+        doc.setFontSize(fontSize)
+        doc.setTextColor(color)
+        if (isBold) {
+          doc.setFont(undefined, 'bold')
+        } else {
+          doc.setFont(undefined, 'normal')
+        }
+        
+        const lines = doc.splitTextToSize(text, contentWidth)
+        lines.forEach((line: string) => {
+          checkPageBreak(7)
+          doc.text(line, margin, yPosition)
+          yPosition += 7
+        })
+      }
+
+      // Helper function to get image format from data URL
+      const getImageFormat = (dataUrl: string): string => {
+        if (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg')) {
+          return 'JPEG'
+        } else if (dataUrl.startsWith('data:image/png')) {
+          return 'PNG'
+        } else if (dataUrl.startsWith('data:image/webp')) {
+          return 'WEBP'
+        }
+        return 'JPEG' // default
+      }
+
+      // Helper function to add image
+      const addImageToPDF = (imageSrc: string, width: number, height: number) => {
+        checkPageBreak(height + 5)
+        try {
+          const format = getImageFormat(imageSrc)
+          doc.addImage(imageSrc, format, margin, yPosition, width, height)
+          yPosition += height + 5
+        } catch (error) {
+          console.error('Error adding image to PDF:', error)
+          // If image fails, add a placeholder text
+          addText('[Image could not be loaded]', 9, false, '#999999')
+        }
+      }
+
+      // Title
+      addText(`Crop Diagnosis Report - ${report.reportId}`, 18, true, '#2E7D32')
+      yPosition += 5
+
+      // Report Date
+      addText(`Generated: ${formatDate(report.timestamp)}`, 10, false, '#666666')
+      yPosition += 10
+
+      // Crop Information
+      addText('Crop Information', 14, true)
+      addText(`Crop Type: ${report.cropInfo.cropType}`, 11)
+      addText(`Growth Stage: ${report.cropInfo.growthStage}`, 11)
+      addText(`Location: ${report.cropInfo.location}`, 11)
+      addText(`Soil Condition: ${report.cropInfo.soilCondition}`, 11)
+      addText(`Weather Condition: ${report.cropInfo.weatherCondition}`, 11)
+      yPosition += 5
+
+      // Diagnosis
+      addText('Diagnosis', 14, true)
+      addText(`Disease: ${report.analysis.diagnosis.diseaseName}`, 12, true)
+      if (report.analysis.diagnosis.scientificName) {
+        addText(`Scientific Name: ${report.analysis.diagnosis.scientificName}`, 10, false, '#666666')
+      }
+      addText(`Severity: ${report.analysis.diagnosis.severity}`, 11)
+      addText(`AI Confidence: ${report.analysis.diagnosis.confidence}%`, 11)
+      addText(`Description: ${report.analysis.diagnosis.description}`, 10)
+      yPosition += 5
+
+      // Images Section
+      if (report.imagePreviews) {
+        addText('Uploaded Images', 14, true)
+        yPosition += 5
+
+        // Crop Images
+        if (report.imagePreviews.cropImages && report.imagePreviews.cropImages.length > 0) {
+          addText(`Crop Images (${report.imagePreviews.cropImages.length})`, 12, true)
+          yPosition += 3
+          
+          for (let i = 0; i < Math.min(report.imagePreviews.cropImages.length, 3); i++) {
+            const img = report.imagePreviews.cropImages[i]
+            const imgWidth = 60
+            const imgHeight = 45
+            addImageToPDF(img, imgWidth, imgHeight)
+          }
+          yPosition += 5
+        }
+
+        // Soil Report Image
+        if (report.imagePreviews.soilReport) {
+          addText('Soil Report', 12, true)
+          yPosition += 3
+          const imgWidth = 60
+          const imgHeight = 45
+          addImageToPDF(report.imagePreviews.soilReport, imgWidth, imgHeight)
+        }
+
+        // Weather Image
+        if (report.imagePreviews.weatherImage) {
+          addText('Weather & Sky', 12, true)
+          yPosition += 3
+          const imgWidth = 60
+          const imgHeight = 45
+          addImageToPDF(report.imagePreviews.weatherImage, imgWidth, imgHeight)
+        }
+      }
+
+      // Environmental Factors
+      addText('Environmental Risk Factors', 14, true)
+      addText(`Humidity: ${report.analysis.environmentalFactors.humidity.value} (${report.analysis.environmentalFactors.humidity.riskLevel} Risk)`, 11)
+      addText(`Temperature: ${report.analysis.environmentalFactors.temperature.value} (${report.analysis.environmentalFactors.temperature.riskLevel})`, 11)
+      addText(`Overall Risk: ${report.analysis.environmentalFactors.overallRisk}%`, 11, true)
+      yPosition += 5
+
+      // Impact
+      addText('Potential Impact', 14, true)
+      addText(`Yield Loss: ${report.analysis.impact.yieldLoss}`, 11, true, '#DC2626')
+      addText(`Timeframe: ${report.analysis.impact.timeframe}`, 11)
+      addText(report.analysis.impact.description, 10)
+      yPosition += 5
+
+      // Treatment Plan
+      addText('Treatment Action Plan', 14, true)
+      yPosition += 3
+
+      // Immediate Actions
+      if (report.analysis.treatmentPlan.immediate.length > 0) {
+        addText('Immediate Action (WITHIN 24 HOURS)', 12, true, '#DC2626')
+        report.analysis.treatmentPlan.immediate.forEach((action) => {
+          addText(`• ${action.title}`, 11, true)
+          addText(action.description, 10)
+          yPosition += 2
+        })
+        yPosition += 3
+      }
+
+      // Follow-up Care
+      if (report.analysis.treatmentPlan.followUp.length > 0) {
+        addText('Follow-up Care (DAY 3-7)', 12, true, '#D97706')
+        report.analysis.treatmentPlan.followUp.forEach((action) => {
+          addText(`• ${action.title}`, 11, true)
+          addText(action.description, 10)
+          yPosition += 2
+        })
+        yPosition += 3
+      }
+
+      // Prevention
+      if (report.analysis.treatmentPlan.prevention.length > 0) {
+        addText('Prevention & Recovery (POST-SEASON)', 12, true, '#2E7D32')
+        report.analysis.treatmentPlan.prevention.forEach((action) => {
+          addText(`• ${action.title}`, 11, true)
+          addText(action.description, 10)
+          yPosition += 2
+        })
+        yPosition += 3
+      }
+
+      // Recommendations
+      if (report.analysis.recommendations.pruning || report.analysis.recommendations.watering) {
+        addText('Additional Recommendations', 12, true)
+        if (report.analysis.recommendations.pruning) {
+          addText(`Pruning: ${report.analysis.recommendations.pruning}`, 10)
+        }
+        if (report.analysis.recommendations.watering) {
+          addText(`Watering: ${report.analysis.recommendations.watering}`, 10)
+        }
+        if (report.analysis.recommendations.fertilization) {
+          addText(`Fertilization: ${report.analysis.recommendations.fertilization}`, 10)
+        }
+        if (report.analysis.recommendations.monitoring) {
+          addText(`Monitoring: ${report.analysis.recommendations.monitoring}`, 10)
+        }
+      }
+
+      // Footer
+      const totalPages = doc.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor('#666666')
+        doc.text(
+          `Page ${i} of ${totalPages} - Report ID: ${report.reportId}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        )
+      }
+
+      // Save PDF
+      doc.save(`Diagnosis_Report_${report.reportId}.pdf`)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Failed to generate PDF. Please try again.')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
+
+  // Load report data from sessionStorage
+  useEffect(() => {
+    const reportData = sessionStorage.getItem("diagnosisReport")
+    if (reportData) {
+      try {
+        const parsed = JSON.parse(reportData)
+        setReport(parsed)
+        // Initialize chat with greeting
+        setMessages([
+          {
+            id: "1",
+            text: `Hello! I've analyzed your ${parsed.analysis.diagnosis.diseaseName} report for ${parsed.cropInfo.cropType}. How can I help you implement the treatment plan?`,
+            sender: "ai",
+            timestamp: new Date().toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            }),
+          },
+        ])
+      } catch (error) {
+        console.error("Error parsing report data:", error)
+        router.push("/diagnosis")
+      }
+    } else {
+      // No report data, redirect to diagnosis page
+      router.push("/diagnosis")
+    }
+  }, [router])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,13 +520,16 @@ export default function DiagnosisReportPage() {
 
     try {
       // Report context for better AI responses
-      const context = {
-        diagnosis: "Late Blight in Tomatoes",
-        severity: "Critical",
-        cropType: "Tomato",
-        location: "Ames, Iowa, USA",
-        confidence: "96%",
-      }
+      const context = report ? {
+        diagnosis: report.analysis.diagnosis.diseaseName,
+        severity: report.analysis.diagnosis.severity,
+        cropType: report.cropInfo.cropType,
+        location: report.cropInfo.location,
+        confidence: `${report.analysis.diagnosis.confidence}%`,
+        growthStage: report.cropInfo.growthStage,
+        soilCondition: report.cropInfo.soilCondition,
+        weatherCondition: report.cropInfo.weatherCondition,
+      } : {}
 
       const response = await fetch("/api/gemini", {
         method: "POST",
@@ -139,13 +593,16 @@ export default function DiagnosisReportPage() {
     setIsLoading(true)
 
     try {
-      const context = {
-        diagnosis: "Late Blight in Tomatoes",
-        severity: "Critical",
-        cropType: "Tomato",
-        location: "Ames, Iowa, USA",
-        confidence: "96%",
-      }
+      const context = report ? {
+        diagnosis: report.analysis.diagnosis.diseaseName,
+        severity: report.analysis.diagnosis.severity,
+        cropType: report.cropInfo.cropType,
+        location: report.cropInfo.location,
+        confidence: `${report.analysis.diagnosis.confidence}%`,
+        growthStage: report.cropInfo.growthStage,
+        soilCondition: report.cropInfo.soilCondition,
+        weatherCondition: report.cropInfo.weatherCondition,
+      } : {}
 
       const response = await fetch("/api/gemini", {
         method: "POST",
@@ -192,6 +649,60 @@ export default function DiagnosisReportPage() {
     }
   }
 
+  if (!report) {
+    return (
+      <div className="min-h-screen bg-[#F0FDF4] dark:bg-[#0f172a] text-gray-900 dark:text-gray-100 transition-colors duration-300 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading report...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case "Critical":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800"
+      case "High":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800"
+      case "Moderate":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+      default:
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800"
+    }
+  }
+
+  const getRiskColor = (riskLevel: string) => {
+    switch (riskLevel) {
+      case "HIGH":
+        return "text-red-600 bg-red-50 dark:bg-red-900/20"
+      case "MODERATE":
+        return "text-orange-600 bg-orange-50 dark:bg-orange-900/20"
+      default:
+        return "text-green-600 bg-green-50 dark:bg-green-900/20"
+    }
+  }
+
+  const formatDate = (timestamp: string) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  // Filter treatment plan based on selected filter
+  const filteredImmediate = report.analysis.treatmentPlan.immediate.filter(
+    (item) => filter === "all" || item.type === filter
+  )
+  const filteredFollowUp = report.analysis.treatmentPlan.followUp.filter(
+    (item) => filter === "all" || item.type === filter
+  )
+  const filteredPrevention = report.analysis.treatmentPlan.prevention.filter(
+    (item) => filter === "all" || item.type === filter
+  )
+
   return (
     <div className="min-h-screen bg-[#F0FDF4] dark:bg-[#0f172a] text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -204,51 +715,70 @@ export default function DiagnosisReportPage() {
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Dashboard
           </Link>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Report ID: #AG-2023-8842</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">Report ID: #{report.reportId}</span>
         </div>
 
         {/* Main Report Card */}
         <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700 mb-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#2E7D32] opacity-5 dark:opacity-10 rounded-full blur-3xl -mr-16 -mt-16"></div>
           <div className="flex flex-col md:flex-row gap-6 items-start relative z-10">
-            <div className="w-full md:w-48 h-32 md:h-32 flex-shrink-0 rounded-xl overflow-hidden shadow-md relative group">
-              <Image
-                alt="Tomato leaf showing signs of blight"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhu2LjReI2FfXgio8uar0OY7gVLJ18i08HiIKsFjS13tiWsX-HD47Tz0QZ9NSbz-5JhTAd6KuPsUzpbZpj5ASwhXfakNQ0hntiM8FUcuYK0_M2lQ4JfaS6dExth3wvM4LhbCS_97xyr2tZDRgjcM7_4UNTJCNJwkJ12AmFTAyfTC9nZlmO9QDnVht--LwjnA8aGjt6OHLppZW7_U0ZR5-RD1dvGErb174SfDDN9mSepMmLzCQkOalN8Y-NR3F-HtLS8cMOdQY_4hs"
-                fill
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-                Source Image
-              </span>
-            </div>
+            {/* Crop Images Section */}
+            {report.imagePreviews?.cropImages && report.imagePreviews.cropImages.length > 0 ? (
+              <div className="w-full md:w-48 flex-shrink-0">
+                <div className="rounded-xl overflow-hidden shadow-md relative group">
+                  <div className="relative w-full h-32 md:h-32">
+                    <img
+                      alt="Crop image showing disease symptoms"
+                      src={report.imagePreviews.cropImages[0]}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
+                    <span className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                      Crop Image {report.imagePreviews.cropImages.length > 1 ? `(1 of ${report.imagePreviews.cropImages.length})` : ""}
+                    </span>
+                  </div>
+                </div>
+                {report.imagePreviews.cropImages.length > 1 && (
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                    +{report.imagePreviews.cropImages.length - 1} more crop image{report.imagePreviews.cropImages.length - 1 > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="w-full md:w-48 h-32 md:h-32 flex-shrink-0 rounded-xl overflow-hidden shadow-md relative group bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                <div className="text-center text-gray-400 dark:text-gray-500">
+                  <Leaf className="w-8 h-8 mx-auto mb-2" />
+                  <span className="text-xs">No crop image</span>
+                </div>
+              </div>
+            )}
             <div className="flex-grow">
               <div className="flex items-center gap-3 mb-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800">
-                  Critical
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getSeverityColor(report.analysis.diagnosis.severity)}`}>
+                  {report.analysis.diagnosis.severity}
                 </span>
                 <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  Oct 24, 2023
+                  {formatDate(report.timestamp)}
                 </span>
               </div>
               <h1 className="font-[family-name:var(--font-merriweather)] text-3xl md:text-4xl text-gray-900 dark:text-white font-bold mb-2">
-                Late Blight in Tomatoes
+                {report.analysis.diagnosis.diseaseName}
+                {report.analysis.diagnosis.scientificName && (
+                  <span className="text-lg font-normal text-gray-500 dark:text-gray-400 ml-2">
+                    ({report.analysis.diagnosis.scientificName})
+                  </span>
+                )}
               </h1>
               <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
-                A destructive fungal disease caused by <em className="italic">Phytophthora infestans</em>. Rapid spread
-                detected on upper foliage. Immediate action required to save the crop yield.
+                {report.analysis.diagnosis.description}
               </p>
             </div>
             <div className="flex-shrink-0 flex flex-col items-end">
               <div className="text-right mb-1">
                 <span className="block text-sm text-gray-600 dark:text-gray-400">AI Confidence</span>
-                <span className="text-4xl font-bold text-[#2E7D32]">96%</span>
+                <span className="text-4xl font-bold text-[#2E7D32]">{report.analysis.diagnosis.confidence}%</span>
               </div>
-              <button className="text-[#2E7D32] hover:text-[#1B5E20] text-sm font-medium flex items-center mt-2">
-                See detailed analysis <ExternalLink className="w-4 h-4 ml-1" />
-              </button>
             </div>
           </div>
         </div>
@@ -256,6 +786,87 @@ export default function DiagnosisReportPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
+            {/* Uploaded Images Section */}
+            {(report.imagePreviews?.cropImages?.length > 0 || report.imagePreviews?.soilReport || report.imagePreviews?.weatherImage) && (
+              <Card className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="font-[family-name:var(--font-merriweather)] text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <ImageIcon className="w-5 h-5 text-[#2E7D32]" />
+                    Uploaded Evidence Images
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Crop Images */}
+                    {report.imagePreviews.cropImages && report.imagePreviews.cropImages.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Leaf className="w-4 h-4 text-[#2E7D32]" />
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Crop Images</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">({report.imagePreviews.cropImages.length})</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {report.imagePreviews.cropImages.slice(0, 4).map((img, index) => (
+                            <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group cursor-pointer">
+                              <img
+                                src={img}
+                                alt={`Crop image ${index + 1}`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                              {index === 3 && report.imagePreviews.cropImages.length > 4 && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center pointer-events-none">
+                                  <span className="text-white text-xs font-medium">+{report.imagePreviews.cropImages.length - 4} more</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {report.imagePreviews.cropImages.length > 4 && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                            Showing 4 of {report.imagePreviews.cropImages.length} crop images
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Soil Report */}
+                    {report.imagePreviews.soilReport && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-[#C05621]" />
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Soil Report</span>
+                        </div>
+                        <div className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group cursor-pointer">
+                          <img
+                            src={report.imagePreviews.soilReport}
+                            alt="Soil report"
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Weather Image */}
+                    {report.imagePreviews.weatherImage && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Cloud className="w-4 h-4 text-blue-500" />
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Weather & Sky</span>
+                        </div>
+                        <div className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group cursor-pointer">
+                          <img
+                            src={report.imagePreviews.weatherImage}
+                            alt="Weather conditions"
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Executive Summary */}
             <Card className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700">
               <CardHeader>
@@ -277,12 +888,12 @@ export default function DiagnosisReportPage() {
                             <Droplets className="w-5 h-5" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">High Humidity</div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">Current: 88%</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">Humidity</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">{report.analysis.environmentalFactors.humidity.value}</div>
                           </div>
                         </div>
-                        <span className="text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">
-                          HIGH RISK
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${getRiskColor(report.analysis.environmentalFactors.humidity.riskLevel)}`}>
+                          {report.analysis.environmentalFactors.humidity.riskLevel} RISK
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -291,12 +902,12 @@ export default function DiagnosisReportPage() {
                             <Thermometer className="w-5 h-5" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">Mild Temperature</div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">Range: 15°C - 22°C</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">Temperature</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">{report.analysis.environmentalFactors.temperature.value}</div>
                           </div>
                         </div>
-                        <span className="text-xs font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded">
-                          MODERATE
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${getRiskColor(report.analysis.environmentalFactors.temperature.riskLevel)}`}>
+                          {report.analysis.environmentalFactors.temperature.riskLevel}
                         </span>
                       </div>
                     </div>
@@ -306,16 +917,17 @@ export default function DiagnosisReportPage() {
                       Potential Impact
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
-                      Without intervention, yield loss could reach{" "}
-                      <span className="font-bold text-red-600 dark:text-red-400">40-60%</span> within 7 days. The
-                      pathogen thrives in the current cool, wet conditions typical for this location in October.
+                      {report.analysis.impact.description}
                     </p>
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-1">
-                      <div className="bg-red-500 h-2.5 rounded-full" style={{ width: "85%" }}></div>
+                      <div 
+                        className="bg-red-500 h-2.5 rounded-full" 
+                        style={{ width: `${report.analysis.environmentalFactors.overallRisk}%` }}
+                      ></div>
                     </div>
                     <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                       <span>Low Risk</span>
-                      <span>Severe Risk (85%)</span>
+                      <span>Severe Risk ({report.analysis.environmentalFactors.overallRisk}%)</span>
                     </div>
                   </div>
                 </div>
@@ -324,120 +936,178 @@ export default function DiagnosisReportPage() {
 
             {/* Treatment Action Plan */}
             <Card className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="font-[family-name:var(--font-merriweather)] text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-[#2E7D32]" />
+              <CardHeader className="pb-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <CardTitle className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2.5">
+                    <Heart className="w-5 h-5 text-[#2E7D32] stroke-2" />
                     Treatment Action Plan
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button
-                      variant={filter === "all" ? "default" : "outline"}
-                      size="sm"
+                    <button
                       onClick={() => setFilter("all")}
-                      className={filter === "all" ? "bg-[#2E7D32] text-white" : ""}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
+                        filter === "all"
+                          ? "bg-[#2E7D32] text-white shadow-md"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
                     >
                       All
-                    </Button>
-                    <Button
-                      variant={filter === "organic" ? "default" : "outline"}
-                      size="sm"
+                    </button>
+                    <button
                       onClick={() => setFilter("organic")}
-                      className={filter === "organic" ? "bg-[#2E7D32] text-white" : ""}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
+                        filter === "organic"
+                          ? "bg-[#2E7D32] text-white shadow-md"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
                     >
                       Organic
-                    </Button>
-                    <Button
-                      variant={filter === "chemical" ? "default" : "outline"}
-                      size="sm"
+                    </button>
+                    <button
                       onClick={() => setFilter("chemical")}
-                      className={filter === "chemical" ? "bg-[#2E7D32] text-white" : ""}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
+                        filter === "chemical"
+                          ? "bg-[#2E7D32] text-white shadow-md"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
                     >
                       Chemical
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="relative pl-4 mb-8">
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700 transform -translate-x-1/2"></div>
-
+              <CardContent className="pt-0">
+                <div className="relative">
                   {/* Immediate Action */}
-                  <div className="relative pl-10 pb-10">
-                    <div className="absolute left-4 top-0 w-4 h-4 rounded-full bg-red-500 border-4 border-white dark:border-[#1e293b] transform -translate-x-1/2 shadow"></div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Immediate Action</h3>
-                      <span className="text-xs font-semibold uppercase text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded w-fit mt-1 sm:mt-0">
-                        Within 24 Hours
-                      </span>
-                    </div>
-                    <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl p-4 mt-2">
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-sm text-red-500">
-                            <Heart className="w-6 h-6" />
+                  {filteredImmediate.length > 0 && (
+                    <div className="relative pb-10">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Immediate Action</h3>
+                        <span className="text-xs font-bold uppercase tracking-wider text-white bg-red-600 px-3 py-1.5 rounded-md w-fit">
+                          WITHIN 24 HOURS
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {filteredImmediate.map((action, index) => (
+                          <div key={index} className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-900/30 rounded-xl p-5 shadow-sm">
+                            <div className="flex gap-4">
+                              <div className="flex-shrink-0">
+                                <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/20 rounded-full flex items-center justify-center">
+                                  <Heart className="w-6 h-6 text-red-500 stroke-2 fill-red-500" />
+                                </div>
+                              </div>
+                              <div className="flex-grow min-w-0">
+                                <h4 className="font-bold text-gray-900 dark:text-white text-base mb-2">{action.title}</h4>
+                                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
+                                  {action.description}
+                                </p>
+                                {action.products && action.products.length > 0 ? (
+                                  <div className="mt-3">
+                                    <a
+                                      href="#"
+                                      className="inline-flex items-center text-sm font-medium text-[#2E7D32] hover:text-[#1B5E20] hover:underline transition-colors"
+                                    >
+                                      View Product Recommendations <ExternalLink className="w-3 h-3 ml-1" />
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <div className="mt-3">
+                                    <a
+                                      href="/diagnosis"
+                                      className="inline-flex items-center text-sm font-medium text-[#2E7D32] hover:text-[#1B5E20] hover:underline transition-colors"
+                                    >
+                                      Upload images <span className="ml-1">→</span>
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex-grow">
-                          <div className="flex justify-between items-start">
-                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Apply Fungicide Spray</h4>
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                            Use a Chlorothalonil or Copper-based fungicide. Ensure full leaf coverage, especially
-                            undersides.
-                          </p>
-                          <div className="mt-3 flex gap-2">
-                            <a
-                              href="#"
-                              className="inline-flex items-center text-xs font-medium text-[#2E7D32] hover:underline"
-                            >
-                              View Product Recommendations <ExternalLink className="w-3 h-3 ml-1" />
-                            </a>
-                          </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Follow-up Care */}
-                  <div className="relative pl-10 pb-10">
-                    <div className="absolute left-4 top-0 w-4 h-4 rounded-full bg-yellow-500 border-4 border-white dark:border-[#1e293b] transform -translate-x-1/2 shadow"></div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Follow-up Care</h3>
-                      <span className="text-xs font-semibold uppercase text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded w-fit mt-1 sm:mt-0">
-                        Day 3 - 7
-                      </span>
+                  {filteredFollowUp.length > 0 && (
+                    <div className="relative pb-10">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Follow-up Care</h3>
+                        <span className="text-xs font-bold uppercase tracking-wider text-yellow-800 bg-yellow-100 dark:bg-yellow-900/30 px-3 py-1.5 rounded-full w-fit">
+                          DAY 3-7
+                        </span>
+                      </div>
+                      
+                      <ul className="space-y-3">
+                        {filteredFollowUp.map((action, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <div className="flex-shrink-0 mt-0.5">
+                              {action.type === "organic" ? (
+                                <Sprout className="w-5 h-5 text-yellow-500" />
+                              ) : action.type === "chemical" ? (
+                                <Heart className="w-5 h-5 text-yellow-500" />
+                              ) : (
+                                <Scissors className="w-5 h-5 text-yellow-500" />
+                              )}
+                            </div>
+                            <div className="flex-grow">
+                              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                <strong className="font-semibold text-gray-900 dark:text-white">{action.title}:</strong> {action.description}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                        {report.analysis.recommendations.pruning && (
+                          <li className="flex items-start gap-3">
+                            <div className="flex-shrink-0 mt-0.5">
+                              <Scissors className="w-5 h-5 text-yellow-500" />
+                            </div>
+                            <div className="flex-grow">
+                              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                <strong className="font-semibold text-gray-900 dark:text-white">Pruning:</strong> {report.analysis.recommendations.pruning}
+                              </span>
+                            </div>
+                          </li>
+                        )}
+                        {report.analysis.recommendations.watering && (
+                          <li className="flex items-start gap-3">
+                            <div className="flex-shrink-0 mt-0.5">
+                              <Droplets className="w-5 h-5 text-yellow-500" />
+                            </div>
+                            <div className="flex-grow">
+                              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                <strong className="font-semibold text-gray-900 dark:text-white">Watering:</strong> {report.analysis.recommendations.watering}
+                              </span>
+                            </div>
+                          </li>
+                        )}
+                      </ul>
                     </div>
-                    <ul className="space-y-3 mt-2">
-                      <li className="flex items-start gap-3">
-                        <Scissors className="w-5 h-5 text-yellow-500 mt-0.5" />
-                        <span className="text-sm text-gray-600 dark:text-gray-300">
-                          <strong>Pruning:</strong> Remove and destroy all infected leaves. Do not compost them.
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <Droplets className="w-5 h-5 text-yellow-500 mt-0.5" />
-                        <span className="text-sm text-gray-600 dark:text-gray-300">
-                          <strong>Watering:</strong> Switch to drip irrigation. Avoid wetting foliage during watering.
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
+                  )}
 
                   {/* Prevention & Recovery */}
-                  <div className="relative pl-10">
-                    <div className="absolute left-4 top-0 w-4 h-4 rounded-full bg-[#2E7D32] border-4 border-white dark:border-[#1e293b] transform -translate-x-1/2 shadow"></div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Prevention & Recovery</h3>
-                      <span className="text-xs font-semibold uppercase text-[#2E7D32] bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded w-fit mt-1 sm:mt-0">
-                        Post-Season
-                      </span>
+                  {filteredPrevention.length > 0 && (
+                    <div className="relative pb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Prevention & Recovery</h3>
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#2E7D32] bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-md w-fit">
+                          POST-SEASON
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-5">
+                        {filteredPrevention.map((action, index) => (
+                          <div key={index} className="space-y-2">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-base">{action.title}</h4>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                              {action.description}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                      Rotate crops next season. Avoid planting tomatoes, potatoes, or eggplants in this soil for at least
-                      3 years. Improve soil drainage.
-                    </p>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -459,18 +1129,36 @@ export default function DiagnosisReportPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 py-3 px-4 rounded-xl font-medium transition-colors"
+                  onClick={downloadPDF}
+                  disabled={isGeneratingPDF}
+                  className="w-full border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 py-3 px-4 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Download PDF Report
+                  {isGeneratingPDF ? "Generating PDF..." : "Download PDF Report"}
                 </Button>
               </CardContent>
             </Card>
+          </div>
+        </div>
 
-            {/* AI Agronomist Chat */}
-            <Card className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700 flex flex-col flex-grow">
-              <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+        {/* Floating AI Agronomist Chat */}
+        <div className="fixed bottom-6 right-6 z-50">
+          {/* Floating Chat Button */}
+          {!isChatExpanded && (
+            <button
+              onClick={() => setIsChatExpanded(true)}
+              className="w-14 h-14 bg-[#2E7D32] hover:bg-[#1B5E20] text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 animate-in fade-in zoom-in duration-200"
+              aria-label="Open AI Agronomist Chat"
+            >
+              <MessageSquare className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Chat Card */}
+          {isChatExpanded && (
+            <Card className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 flex flex-col w-[464px] h-[626px] animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-hidden gap-0 py-0">
+              <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-2.5">
                   <div className="relative">
                     <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-[#2E7D32]">
                       <Bot className="w-5 h-5" />
@@ -478,18 +1166,22 @@ export default function DiagnosisReportPage() {
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#1e293b] rounded-full"></span>
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">AI Agronomist</h3>
-                    <span className="text-[10px] text-green-600 dark:text-green-400 font-semibold uppercase">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-tight">AI Agronomist</h3>
+                    <span className="text-[10px] text-green-600 dark:text-green-400 font-semibold uppercase leading-tight">
                       Online
                     </span>
                   </div>
                 </div>
-                <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                  <MoreVertical className="w-4 h-4" />
+                <button 
+                  onClick={() => setIsChatExpanded(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  aria-label="Minimize chat"
+                >
+                  <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-4 overflow-y-auto space-y-4 bg-gray-50/50 dark:bg-gray-900/20 flex-grow" style={{ minHeight: "400px", maxHeight: "calc(100vh - 450px)" }}>
+              <div className="px-4 py-1 overflow-y-auto space-y-4 bg-gray-50/50 dark:bg-gray-900/20 flex-grow min-h-0">
                 <div className="flex flex-col items-center py-4">
                   <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
                     Today
@@ -515,7 +1207,10 @@ export default function DiagnosisReportPage() {
                           : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none border-gray-100 dark:border-gray-700"
                       }`}
                     >
-                      <p className="text-sm leading-relaxed">{msg.text}</p>
+                      <p 
+                        className="text-sm leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: formatMessage(msg.text) }}
+                      />
                       <span
                         className={`text-[10px] mt-1 block ${
                           msg.sender === "user" ? "text-white/70" : "text-gray-400"
@@ -571,7 +1266,7 @@ export default function DiagnosisReportPage() {
                 )}
               </div>
 
-              <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-[#1e293b] rounded-b-2xl">
+              <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-[#1e293b] flex-shrink-0">
                 <form onSubmit={handleSendMessage} className="relative flex items-center">
                   <Input
                     type="text"
@@ -579,22 +1274,22 @@ export default function DiagnosisReportPage() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     disabled={isLoading}
-                    className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl pr-12 pl-4 py-3 text-sm focus:ring-[#2E7D32] focus:border-[#2E7D32] placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50"
+                    className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl pr-12 pl-4 py-2.5 text-sm focus:ring-[#2E7D32] focus:border-[#2E7D32] placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50"
                   />
                   <button
                     type="submit"
                     disabled={isLoading || !message.trim()}
-                    className="absolute right-2 p-2 text-[#2E7D32] hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="absolute right-2 p-1.5 text-[#2E7D32] hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="w-4 h-4" />
                   </button>
                 </form>
-                <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mt-3">
+                <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mt-2">
                   AI can make mistakes. Consider asking a human expert for critical decisions.
                 </p>
               </div>
             </Card>
-          </div>
+          )}
         </div>
       </main>
     </div>

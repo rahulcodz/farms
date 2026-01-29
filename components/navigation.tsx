@@ -19,7 +19,7 @@ export default function Navigation() {
               <Leaf className="w-8 h-8 text-[#2E7D32]" />
               <span className="font-[family-name:var(--font-merriweather)] font-bold text-2xl text-[#1A2E1A] tracking-tight">AgroAI</span>
             </Link>
-            <div className="hidden lg:flex space-x-8">
+            {/* <div className="hidden lg:flex space-x-8">
               <Link
                 href="/diagnosis"
                 className={cn(
@@ -56,10 +56,10 @@ export default function Navigation() {
               >
                 FAQ
               </Link>
-            </div>
+            </div> */}
           </div>
           <div className="flex items-center gap-4">
-            <div className="relative hidden sm:block">
+            {/* <div className="relative hidden sm:block">
               <Select defaultValue="en">
                 <SelectTrigger className="relative appearance-none bg-transparent border text-[#4B634B] text-sm font-medium focus:ring-0 cursor-pointer pl-10 pr-8 py-2 w-auto min-w-[150px] rounded-full flex items-center gap-2">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center">
@@ -73,7 +73,7 @@ export default function Navigation() {
                   <SelectItem value="fr">Français</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
             <Link href="/diagnosis">
               <Button className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white px-6 py-2.5 rounded-full font-semibold transition-all shadow-[0_10px_30px_-5px_rgba(46,125,50,0.2)]">
                 Get Started
