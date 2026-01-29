@@ -1,10 +1,63 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
+
+// Speech Recognition Types
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start(): void
+  stop(): void
+  abort(): void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number
+  results: SpeechRecognitionResultList
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string
+  message: string
+}
+
+interface SpeechRecognitionResultList {
+  length: number
+  item(index: number): SpeechRecognitionResult
+  [index: number]: SpeechRecognitionResult
+}
+
+interface SpeechRecognitionResult {
+  length: number
+  item(index: number): SpeechRecognitionAlternative
+  [index: number]: SpeechRecognitionAlternative
+  isFinal: boolean
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string
+  confidence: number
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: {
+      new (): SpeechRecognition
+    }
+    webkitSpeechRecognition: {
+      new (): SpeechRecognition
+    }
+  }
+}
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -24,6 +77,9 @@ import {
   Droplets,
   CloudRain,
   BarChart3,
+  Mic,
+  MicOff,
+  Square,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -33,8 +89,20 @@ export default function DiagnosisPage() {
     "https://lh3.googleusercontent.com/aida-public/AB6AXuCuVGZW3lvFtlDKoK3NALUukQOLqX8PTh6DwjVwkIbRoqFfkcOmdZYzTnEx8kj9PMQkLDyFsyyVRKBiVOpGaDiIeRNwvYcQzlesw6t1lte2pC9CzdfOr15HjMPoLp9VWRo7NXn67L-SHkGPCCfaU3cz6RSNUAyEWlAndfBJ1SSj46PlSAKfJcQ_XLPAPrPuOvPobCyFPvEF-NByka87StvDeW6BKx-UCJYsjSgMKwAw607sNjeGKfr9AfKEZH-wJux9iCXa7Z6VDDs",
   ])
   const [cropType, setCropType] = useState("Tomato")
+  const [customCropType, setCustomCropType] = useState("")
   const [growthStage, setGrowthStage] = useState("")
+  const [customGrowthStage, setCustomGrowthStage] = useState("")
   const [location, setLocation] = useState("Ames, Iowa, USA")
+  const [soilCondition, setSoilCondition] = useState("")
+  const [customSoilCondition, setCustomSoilCondition] = useState("")
+  const [weatherCondition, setWeatherCondition] = useState("")
+  const [customWeatherCondition, setCustomWeatherCondition] = useState("")
+  const [symptoms, setSymptoms] = useState<string[]>([])
+  const [customSymptom, setCustomSymptom] = useState("")
+  const [description, setDescription] = useState("")
+  const [isRecording, setIsRecording] = useState(false)
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
+  const [recordingTime, setRecordingTime] = useState(0)
 
   const handleImageRemove = (index: number) => {
     setCropImages((prev) => prev.filter((_, i) => i !== index))
@@ -61,6 +129,94 @@ export default function DiagnosisPage() {
         }
       )
     }
+  }
+
+  // Speech Recognition Setup
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition
+      
+      if (SpeechRecognitionClass) {
+        const recognitionInstance = new SpeechRecognitionClass()
+        recognitionInstance.continuous = true
+        recognitionInstance.interimResults = true
+        recognitionInstance.lang = "en-US"
+
+        recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
+          let interimTranscript = ""
+          let finalTranscript = ""
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i]
+            const transcript = result[0].transcript
+            if (result.isFinal) {
+              finalTranscript += transcript + " "
+            } else {
+              interimTranscript += transcript
+            }
+          }
+
+          setDescription((prev) => {
+            const baseText = prev.replace(interimTranscript, "")
+            return baseText + finalTranscript + interimTranscript
+          })
+        }
+
+        recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
+          console.error("Speech recognition error:", event.error)
+          if (event.error === "no-speech" || event.error === "aborted") {
+            setIsRecording(false)
+          }
+        }
+
+        recognitionInstance.onend = () => {
+          setIsRecording(false)
+        }
+
+        setRecognition(recognitionInstance)
+      }
+    }
+  }, [])
+
+  // Recording timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingTime((prev) => prev + 1)
+      }, 1000)
+    } else {
+      setRecordingTime(0)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isRecording])
+
+  const startRecording = () => {
+    if (recognition) {
+      try {
+        recognition.start()
+        setIsRecording(true)
+      } catch (error) {
+        console.error("Error starting recording:", error)
+      }
+    } else {
+      alert("Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.")
+    }
+  }
+
+  const stopRecording = () => {
+    if (recognition) {
+      recognition.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
   return (
@@ -210,20 +366,53 @@ export default function DiagnosisPage() {
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                           <Sprout className="w-5 h-5 text-gray-400" />
                         </div>
-                        <Select value={cropType} onValueChange={setCropType}>
+                        <Select 
+                          value={cropType} 
+                          onValueChange={(value) => {
+                            setCropType(value)
+                            if (value !== "Other") setCustomCropType("")
+                          }}
+                        >
                           <SelectTrigger className="pl-10 w-full h-11">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="Tomato">Tomato</SelectItem>
+                            <SelectItem value="Potato">Potato</SelectItem>
                             <SelectItem value="Corn (Maize)">Corn (Maize)</SelectItem>
                             <SelectItem value="Wheat">Wheat</SelectItem>
                             <SelectItem value="Rice">Rice</SelectItem>
                             <SelectItem value="Soybean">Soybean</SelectItem>
-                            <SelectItem value="Tomato">Tomato</SelectItem>
-                            <SelectItem value="Potato">Potato</SelectItem>
+                            <SelectItem value="Cotton">Cotton</SelectItem>
+                            <SelectItem value="Barley">Barley</SelectItem>
+                            <SelectItem value="Oats">Oats</SelectItem>
+                            <SelectItem value="Sorghum">Sorghum</SelectItem>
+                            <SelectItem value="Pepper">Pepper</SelectItem>
+                            <SelectItem value="Cucumber">Cucumber</SelectItem>
+                            <SelectItem value="Lettuce">Lettuce</SelectItem>
+                            <SelectItem value="Carrot">Carrot</SelectItem>
+                            <SelectItem value="Onion">Onion</SelectItem>
+                            <SelectItem value="Cabbage">Cabbage</SelectItem>
+                            <SelectItem value="Broccoli">Broccoli</SelectItem>
+                            <SelectItem value="Cauliflower">Cauliflower</SelectItem>
+                            <SelectItem value="Spinach">Spinach</SelectItem>
+                            <SelectItem value="Beans">Beans</SelectItem>
+                            <SelectItem value="Peas">Peas</SelectItem>
+                            <SelectItem value="Sunflower">Sunflower</SelectItem>
+                            <SelectItem value="Canola">Canola</SelectItem>
+                            <SelectItem value="Sugar Beet">Sugar Beet</SelectItem>
+                            <SelectItem value="Other">Other (Specify)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      {cropType === "Other" && (
+                        <Input
+                          placeholder="Enter crop type..."
+                          value={customCropType}
+                          onChange={(e) => setCustomCropType(e.target.value)}
+                          className="mt-2 h-11"
+                        />
+                      )}
                     </div>
 
                     {/* Growth Stage */}
@@ -235,19 +424,37 @@ export default function DiagnosisPage() {
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                           <Clock className="w-5 h-5 text-gray-400" />
                         </div>
-                        <Select value={growthStage} onValueChange={setGrowthStage}>
+                        <Select 
+                          value={growthStage} 
+                          onValueChange={(value) => {
+                            setGrowthStage(value)
+                            if (value !== "Other") setCustomGrowthStage("")
+                          }}
+                        >
                           <SelectTrigger className="pl-10 w-full h-11">
                             <SelectValue placeholder="Select growth stage" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="Germination">Germination</SelectItem>
                             <SelectItem value="Seedling">Seedling</SelectItem>
                             <SelectItem value="Vegetative">Vegetative</SelectItem>
                             <SelectItem value="Flowering">Flowering</SelectItem>
                             <SelectItem value="Fruiting">Fruiting</SelectItem>
                             <SelectItem value="Maturation">Maturation</SelectItem>
+                            <SelectItem value="Harvest">Harvest</SelectItem>
+                            <SelectItem value="Post-Harvest">Post-Harvest</SelectItem>
+                            <SelectItem value="Other">Other (Specify)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      {growthStage === "Other" && (
+                        <Input
+                          placeholder="Enter growth stage..."
+                          value={customGrowthStage}
+                          onChange={(e) => setCustomGrowthStage(e.target.value)}
+                          className="mt-2 h-11"
+                        />
+                      )}
                     </div>
 
                     {/* Location */}
@@ -281,6 +488,133 @@ export default function DiagnosisPage() {
                           <span className="sm:hidden">Locate</span>
                         </Button>
                       </div>
+                    </div>
+
+                    {/* Soil Condition */}
+                    <div className="sm:col-span-3">
+                      <Label htmlFor="soil-condition" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Soil Condition
+                      </Label>
+                      <Select 
+                        value={soilCondition} 
+                        onValueChange={(value) => {
+                          setSoilCondition(value)
+                          if (value !== "Other") setCustomSoilCondition("")
+                        }}
+                      >
+                        <SelectTrigger className="w-full h-11">
+                          <SelectValue placeholder="Select soil condition" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Well-drained">Well-drained</SelectItem>
+                          <SelectItem value="Clay">Clay</SelectItem>
+                          <SelectItem value="Sandy">Sandy</SelectItem>
+                          <SelectItem value="Loamy">Loamy</SelectItem>
+                          <SelectItem value="Silty">Silty</SelectItem>
+                          <SelectItem value="Waterlogged">Waterlogged</SelectItem>
+                          <SelectItem value="Dry">Dry</SelectItem>
+                          <SelectItem value="Other">Other (Specify)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {soilCondition === "Other" && (
+                        <Input
+                          placeholder="Enter soil condition..."
+                          value={customSoilCondition}
+                          onChange={(e) => setCustomSoilCondition(e.target.value)}
+                          className="mt-2 h-11"
+                        />
+                      )}
+                    </div>
+
+                    {/* Weather Condition */}
+                    <div className="sm:col-span-3">
+                      <Label htmlFor="weather-condition" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Recent Weather
+                      </Label>
+                      <Select 
+                        value={weatherCondition} 
+                        onValueChange={(value) => {
+                          setWeatherCondition(value)
+                          if (value !== "Other") setCustomWeatherCondition("")
+                        }}
+                      >
+                        <SelectTrigger className="w-full h-11">
+                          <SelectValue placeholder="Select weather condition" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Sunny">Sunny</SelectItem>
+                          <SelectItem value="Cloudy">Cloudy</SelectItem>
+                          <SelectItem value="Rainy">Rainy</SelectItem>
+                          <SelectItem value="Humid">Humid</SelectItem>
+                          <SelectItem value="Dry">Dry</SelectItem>
+                          <SelectItem value="Windy">Windy</SelectItem>
+                          <SelectItem value="Frost">Frost</SelectItem>
+                          <SelectItem value="Drought">Drought</SelectItem>
+                          <SelectItem value="Other">Other (Specify)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {weatherCondition === "Other" && (
+                        <Input
+                          placeholder="Enter weather condition..."
+                          value={customWeatherCondition}
+                          onChange={(e) => setCustomWeatherCondition(e.target.value)}
+                          className="mt-2 h-11"
+                        />
+                      )}
+                    </div>
+
+                    {/* Description Textarea with Voice Recording */}
+                    <div className="sm:col-span-6">
+                      <Label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Additional Description
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 font-normal">
+                          (Optional - Describe symptoms, observations, or concerns)
+                        </span>
+                      </Label>
+                      <div className="relative">
+                        <Textarea
+                          id="description"
+                          name="description"
+                          placeholder="Describe any symptoms, observations, or concerns about your crops. You can type or use the microphone to record your description..."
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          rows={5}
+                          className="w-full px-4 py-3 pr-24 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-[#2F855A] focus:border-[#2F855A] transition-all resize-none text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500"
+                        />
+                        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                          {isRecording && (
+                            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                              <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+                              <span className="text-xs font-medium">{formatTime(recordingTime)}</span>
+                            </div>
+                          )}
+                          {isRecording ? (
+                            <Button
+                              type="button"
+                              onClick={stopRecording}
+                              className="h-9 w-9 p-0 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md"
+                              title="Stop Recording"
+                            >
+                              <Square className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              onClick={startRecording}
+                              disabled={!recognition}
+                              className="h-9 w-9 p-0 bg-[#2F855A] hover:bg-[#1B5E20] text-white rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Start Voice Recording"
+                            >
+                              <Mic className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {!recognition && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                          Voice recording requires Chrome, Edge, or Safari browser
+                        </p>
+                      )}
                     </div>
                   </div>
 

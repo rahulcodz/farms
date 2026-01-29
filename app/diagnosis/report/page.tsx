@@ -29,16 +29,166 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 
+interface ChatMessage {
+  id: string
+  text: string
+  sender: "user" | "ai"
+  timestamp: string
+}
+
 export default function DiagnosisReportPage() {
   const [message, setMessage] = useState("")
   const [filter, setFilter] = useState("all")
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "1",
+      text: "Hello! I've analyzed your Tomato Late Blight report. How can I help you implement the treatment plan?",
+      sender: "ai",
+      timestamp: "10:42 AM",
+    },
+  ])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (message.trim()) {
-      // Handle message sending
-      console.log("Sending message:", message)
-      setMessage("")
+    if (!message.trim() || isLoading) return
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      text: message,
+      sender: "user",
+      timestamp: new Date().toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setMessage("")
+    setIsLoading(true)
+
+    try {
+      // Report context for better AI responses
+      const context = {
+        diagnosis: "Late Blight in Tomatoes",
+        severity: "Critical",
+        cropType: "Tomato",
+        location: "Ames, Iowa, USA",
+        confidence: "96%",
+      }
+
+      const response = await fetch("/api/gemini", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage.text,
+          context: context,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to get AI response")
+      }
+
+      const data = await response.json()
+
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: data.text || "I apologize, but I couldn't generate a response. Please try again.",
+        sender: "ai",
+        timestamp: new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      }
+
+      setMessages((prev) => [...prev, aiMessage])
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm sorry, I encountered an error. Please try again later.",
+        sender: "ai",
+        timestamp: new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleQuickQuestion = async (question: string) => {
+    if (isLoading) return
+    
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      text: question,
+      sender: "user",
+      timestamp: new Date().toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setIsLoading(true)
+
+    try {
+      const context = {
+        diagnosis: "Late Blight in Tomatoes",
+        severity: "Critical",
+        cropType: "Tomato",
+        location: "Ames, Iowa, USA",
+        confidence: "96%",
+      }
+
+      const response = await fetch("/api/gemini", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: question,
+          context: context,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to get AI response")
+      }
+
+      const data = await response.json()
+
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: data.text || "I apologize, but I couldn't generate a response. Please try again.",
+        sender: "ai",
+        timestamp: new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      }
+
+      setMessages((prev) => [...prev, aiMessage])
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm sorry, I encountered an error. Please try again later.",
+        sender: "ai",
+        timestamp: new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -346,30 +496,79 @@ export default function DiagnosisReportPage() {
                   </span>
                 </div>
 
-                <div className="flex items-start gap-3 max-w-[85%]">
-                  <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex-shrink-0 flex items-center justify-center text-[#2E7D32]">
-                    <Bot className="w-4 h-4" />
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex items-start gap-3 ${
+                      msg.sender === "user" ? "flex-row-reverse ml-auto max-w-[85%]" : "max-w-[85%]"
+                    }`}
+                  >
+                    {msg.sender === "ai" && (
+                      <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex-shrink-0 flex items-center justify-center text-[#2E7D32]">
+                        <Bot className="w-4 h-4" />
+                      </div>
+                    )}
+                    <div
+                      className={`p-3 rounded-2xl border shadow-sm ${
+                        msg.sender === "user"
+                          ? "bg-[#2E7D32] text-white rounded-tr-none"
+                          : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none border-gray-100 dark:border-gray-700"
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed">{msg.text}</p>
+                      <span
+                        className={`text-[10px] mt-1 block ${
+                          msg.sender === "user" ? "text-white/70" : "text-gray-400"
+                        }`}
+                      >
+                        {msg.timestamp}
+                      </span>
+                    </div>
+                    {msg.sender === "user" && (
+                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center">
+                        <Users className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                      </div>
+                    )}
                   </div>
-                  <div className="bg-white dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
-                      Hello! I've analyzed your Tomato Late Blight report. How can I help you implement the treatment
-                      plan?
-                    </p>
-                    <span className="text-[10px] text-gray-400 mt-1 block">10:42 AM</span>
-                  </div>
-                </div>
+                ))}
 
-                <div className="flex flex-wrap gap-2 py-2">
-                  <button className="text-xs px-3 py-1.5 rounded-full border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32] hover:text-white transition-colors bg-white dark:bg-gray-800">
-                    Where to buy Copper Fungicide?
-                  </button>
-                  <button className="text-xs px-3 py-1.5 rounded-full border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32] hover:text-white transition-colors bg-white dark:bg-gray-800">
-                    Is it safe for organic crops?
-                  </button>
-                  <button className="text-xs px-3 py-1.5 rounded-full border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32] hover:text-white transition-colors bg-white dark:bg-gray-800">
-                    Pruning tips
-                  </button>
-                </div>
+                {isLoading && (
+                  <div className="flex items-start gap-3 max-w-[85%]">
+                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex-shrink-0 flex items-center justify-center text-[#2E7D32]">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {messages.length === 1 && (
+                  <div className="flex flex-wrap gap-2 py-2">
+                    <button
+                      onClick={() => handleQuickQuestion("Where to buy Copper Fungicide?")}
+                      className="text-xs px-3 py-1.5 rounded-full border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32] hover:text-white transition-colors bg-white dark:bg-gray-800"
+                    >
+                      Where to buy Copper Fungicide?
+                    </button>
+                    <button
+                      onClick={() => handleQuickQuestion("Is it safe for organic crops?")}
+                      className="text-xs px-3 py-1.5 rounded-full border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32] hover:text-white transition-colors bg-white dark:bg-gray-800"
+                    >
+                      Is it safe for organic crops?
+                    </button>
+                    <button
+                      onClick={() => handleQuickQuestion("Pruning tips")}
+                      className="text-xs px-3 py-1.5 rounded-full border border-[#2E7D32]/20 text-[#2E7D32] hover:bg-[#2E7D32] hover:text-white transition-colors bg-white dark:bg-gray-800"
+                    >
+                      Pruning tips
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-[#1e293b] rounded-b-2xl">
@@ -379,11 +578,13 @@ export default function DiagnosisReportPage() {
                     placeholder="Ask about this report..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl pr-12 pl-4 py-3 text-sm focus:ring-[#2E7D32] focus:border-[#2E7D32] placeholder-gray-400 dark:placeholder-gray-500"
+                    disabled={isLoading}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl pr-12 pl-4 py-3 text-sm focus:ring-[#2E7D32] focus:border-[#2E7D32] placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50"
                   />
                   <button
                     type="submit"
-                    className="absolute right-2 p-2 text-[#2E7D32] hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                    disabled={isLoading || !message.trim()}
+                    className="absolute right-2 p-2 text-[#2E7D32] hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send className="w-4 h-4" />
                   </button>
