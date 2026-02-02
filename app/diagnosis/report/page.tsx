@@ -31,7 +31,6 @@ import {
   Image as ImageIcon,
   Layers,
   Cloud,
-  ChevronDown,
   X,
   MessageSquare,
 } from "lucide-react"
@@ -1142,7 +1141,7 @@ export default function DiagnosisReportPage() {
         </div>
 
         {/* Floating AI Agronomist Chat */}
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-auto max-w-[464px]">
           {/* Floating Chat Button */}
           {!isChatExpanded && (
             <button
@@ -1156,7 +1155,7 @@ export default function DiagnosisReportPage() {
 
           {/* Chat Card */}
           {isChatExpanded && (
-            <Card className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 flex flex-col w-[464px] h-[626px] animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-hidden gap-0 py-0">
+            <Card className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 flex flex-col w-full h-[calc(100vh-8rem)] sm:h-[626px] max-h-[626px] animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-hidden gap-0 py-0">
               <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="relative">
@@ -1174,10 +1173,10 @@ export default function DiagnosisReportPage() {
                 </div>
                 <button 
                   onClick={() => setIsChatExpanded(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                  aria-label="Minimize chat"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                  aria-label="Close chat"
                 >
-                  <ChevronDown className="w-4 h-4" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 

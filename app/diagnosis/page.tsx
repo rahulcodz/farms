@@ -93,6 +93,8 @@ import {
   BarChart3,
   Mic,
   Square,
+  Loader2,
+  Sparkles,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -177,6 +179,7 @@ export default function DiagnosisPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
   const [recordingTime, setRecordingTime] = useState(0)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   const form = useForm<DiagnosisFormValues>({
     resolver: zodResolver(diagnosisSchema),
@@ -447,6 +450,7 @@ export default function DiagnosisPage() {
   }
 
   const onSubmit = async (data: DiagnosisFormValues) => {
+    setIsAnalyzing(true)
     try {
       // Create FormData to send files
       const formData = new FormData()
@@ -522,6 +526,7 @@ export default function DiagnosisPage() {
       router.push("/diagnosis/report")
     } catch (error) {
       console.error("Error submitting form:", error)
+      setIsAnalyzing(false)
       form.setError("root", {
         type: "manual",
         message: error instanceof Error ? error.message : "Failed to submit diagnosis. Please try again.",
@@ -531,6 +536,37 @@ export default function DiagnosisPage() {
 
   return (
     <div className="min-h-screen bg-[#F0FDF4] dark:bg-[#111827] text-gray-800 dark:text-gray-100 transition-colors duration-200">
+      {/* Full Screen Loader */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-[9999] bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md flex items-center justify-center">
+          <div className="max-w-2xl mx-auto px-6 text-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-32 h-32 rounded-full bg-[#2F855A]/10 dark:bg-[#2F855A]/20 animate-pulse"></div>
+              </div>
+              <div className="relative flex items-center justify-center">
+                <div className="w-24 h-24 rounded-full bg-[#2F855A]/20 dark:bg-[#2F855A]/30 flex items-center justify-center">
+                  <Loader2 className="w-12 h-12 text-[#2F855A] dark:text-green-400 animate-spin" />
+                </div>
+              </div>
+              <div className="absolute -top-2 -right-2">
+                <Sparkles className="w-8 h-8 text-[#2F855A] dark:text-green-400 animate-pulse" />
+              </div>
+            </div>
+            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4 font-[family-name:var(--font-merriweather)]">
+              AI Analysis in Progress
+            </h3>
+            <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+              Our AI is analyzing the uploaded crop with the uploaded image evidence. We'll show you the full report shortly.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <div className="w-2 h-2 bg-[#2F855A] rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+              <div className="w-2 h-2 bg-[#2F855A] rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+              <div className="w-2 h-2 bg-[#2F855A] rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+            </div>
+          </div>
+        </div>
+      )}
       <main className="flex-grow py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -575,7 +611,7 @@ export default function DiagnosisPage() {
                                 <div className="flex items-center gap-2">
                                   <Leaf className="w-5 h-5 text-[#2F855A] flex-shrink-0" />
                                   <FormLabel className="text-sm font-medium text-gray-900 dark:text-white m-0">
-                                    1. Crop Images
+                                    1. Crop Images <span className="text-red-500">*</span>
                                   </FormLabel>
                                 </div>
                                 <span className="text-xs text-gray-500">Visual Disease Detection</span>
@@ -757,12 +793,14 @@ export default function DiagnosisPage() {
                           render={({ field }) => (
                             <FormItem className="sm:col-span-3">
                               <FormLabel className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Crop Type
+                                Crop Type <span className="text-red-500">*</span>
                               </FormLabel>
                               <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                  <Sprout className="w-5 h-5 text-gray-400" />
-                                </div>
+                                {/* <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                                  <div className="flex items-center justify-center w-5 h-5">
+                                    <Sprout className="w-5 h-5 text-[#2F855A] dark:text-green-400 flex-shrink-0" />
+                                  </div>
+                                </div> */}
                                 <FormControl>
                                   <Select
                                     value={field.value}
@@ -773,7 +811,7 @@ export default function DiagnosisPage() {
                                       }
                                     }}
                                   >
-                                    <SelectTrigger className="pl-10 w-full h-11">
+                                    <SelectTrigger className="w-full !h-11 relative z-10">
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -836,12 +874,14 @@ export default function DiagnosisPage() {
                           render={({ field }) => (
                             <FormItem className="sm:col-span-3">
                               <FormLabel className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Growth Stage
+                                Growth Stage <span className="text-red-500">*</span>
                               </FormLabel>
                               <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                  <Clock className="w-5 h-5 text-gray-400" />
-                                </div>
+                                {/* <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                                  <div className="flex items-center justify-center w-5 h-5">
+                                    <Clock className="w-5 h-5 text-[#2F855A] dark:text-green-400 flex-shrink-0" />
+                                  </div>
+                                </div> */}
                                 <FormControl>
                                   <Select
                                     value={field.value}
@@ -852,7 +892,7 @@ export default function DiagnosisPage() {
                                       }
                                     }}
                                   >
-                                    <SelectTrigger className="pl-10 w-full h-11">
+                                    <SelectTrigger className="w-full !h-11 relative z-10">
                                       <SelectValue placeholder="Select growth stage" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -899,18 +939,20 @@ export default function DiagnosisPage() {
                           render={({ field }) => (
                             <FormItem className="sm:col-span-6">
                               <FormLabel className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Farm Location
+                                Farm Location <span className="text-red-500">*</span>
                               </FormLabel>
                               <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
                                 <div className="relative flex-grow focus-within:z-10">
-                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                    <MapPin className="w-5 h-5 text-gray-400" />
+                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                                    <div className="flex items-center justify-center w-5 h-5">
+                                      <MapPin className="w-5 h-5 text-[#2F855A] dark:text-green-400 flex-shrink-0" />
+                                    </div>
                                   </div>
                                   <FormControl>
                                     <Input
                                       placeholder="Start typing address or coordinates..."
                                       {...field}
-                                      className="pl-10 sm:rounded-none sm:rounded-l-md h-11"
+                                      className="pl-10 sm:rounded-none sm:rounded-l-md h-11 relative z-10"
                                     />
                                   </FormControl>
                                 </div>
@@ -937,7 +979,7 @@ export default function DiagnosisPage() {
                           render={({ field }) => (
                             <FormItem className="sm:col-span-3">
                               <FormLabel className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Soil Condition
+                                Soil Condition <span className="text-red-500">*</span>
                               </FormLabel>
                               <FormControl>
                                 <Select
@@ -949,7 +991,7 @@ export default function DiagnosisPage() {
                                     }
                                   }}
                                 >
-                                  <SelectTrigger className="w-full h-11">
+                                  <SelectTrigger className="w-full !h-11">
                                     <SelectValue placeholder="Select soil condition" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -994,7 +1036,7 @@ export default function DiagnosisPage() {
                           render={({ field }) => (
                             <FormItem className="sm:col-span-3">
                               <FormLabel className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Recent Weather
+                                Recent Weather <span className="text-red-500">*</span>
                               </FormLabel>
                               <FormControl>
                                 <Select
@@ -1006,7 +1048,7 @@ export default function DiagnosisPage() {
                                     }
                                   }}
                                 >
-                                  <SelectTrigger className="w-full h-11">
+                                  <SelectTrigger className="w-full !h-11">
                                     <SelectValue placeholder="Select weather condition" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1115,11 +1157,11 @@ export default function DiagnosisPage() {
                         )}
                         <Button
                           type="submit"
-                          disabled={form.formState.isSubmitting}
+                          disabled={form.formState.isSubmitting || isAnalyzing}
                           className="w-full sm:w-auto bg-[#2F855A] hover:bg-green-700 text-white px-6 sm:px-8 py-3 rounded-xl shadow-sm transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <BarChart3 className="w-5 h-5 mr-2" />
-                          {form.formState.isSubmitting ? (
+                          {form.formState.isSubmitting || isAnalyzing ? (
                             <span>Analyzing with AI...</span>
                           ) : (
                             <>
