@@ -10,6 +10,8 @@ const nextConfig = {
         hostname: 'lh3.googleusercontent.com',
       },
     ],
+    // Allow base64 data URLs
+    unoptimized: false,
   },
 }
 
