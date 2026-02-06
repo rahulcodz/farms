@@ -471,28 +471,116 @@ export default function DiagnosisReportPage() {
   }
 
   // Load report data from sessionStorage
+  // Extract disease name from description if present
+  const extractDiseaseName = (text: string): string | null => {
+    if (!text) return null
+    
+    // Common disease name patterns - check for capitalized words at the start or after common phrases
+    const patterns = [
+      // Pattern: "Anthracnose (Fruit Rot)" at the start
+      /^([A-Z][a-zA-Z\s]+(?:\([^)]+\))?)/,
+      // Pattern: "is Anthracnose" or "shows Anthracnose"
+      /(?:is|shows?|indicates?|diagnosed as|identified as|appears to be)\s+([A-Z][a-zA-Z\s]+(?:\([^)]+\))?)/i,
+      // Pattern: "Anthracnose disease" or "Anthracnose infection"
+      /([A-Z][a-zA-Z\s]+(?:\([^)]+\))?)\s+(?:disease|infection|symptom|rot|blight|wilt|spot)/i,
+      // Pattern: "The primary issue is Anthracnose"
+      /(?:primary|main|primary issue|main issue)\s+(?:is|observed|identified as)\s+([A-Z][a-zA-Z\s]+(?:\([^)]+\))?)/i,
+      // Pattern: Quoted disease names
+      /"([A-Z][a-zA-Z\s]+(?:\([^)]+\))?)"/,
+    ]
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match && match[1]) {
+        let diseaseName = match[1].trim()
+        
+        // Clean up common prefixes/suffixes
+        diseaseName = diseaseName
+          .replace(/^(the|a|an)\s+/i, "")
+          .replace(/\s+(disease|infection|symptom|rot|blight|wilt|spot)$/i, "")
+          .trim()
+        
+        // Filter out common false positives
+        if (diseaseName.length > 3 && 
+            diseaseName.length < 100 &&
+            !diseaseName.toLowerCase().includes('image') &&
+            !diseaseName.toLowerCase().includes('symptom') &&
+            !diseaseName.toLowerCase().includes('analysis') &&
+            !diseaseName.toLowerCase().includes('error') &&
+            !diseaseName.toLowerCase().includes('unknown') &&
+            !diseaseName.toLowerCase().includes('issue') &&
+            !diseaseName.toLowerCase().includes('primary') &&
+            !diseaseName.toLowerCase().includes('observed')) {
+          return diseaseName
+        }
+      }
+    }
+    
+    return null
+  }
+
   // Clean description text - remove JSON artifacts and format properly
   const cleanDescription = (text: string): string => {
     if (!text) return ""
     
-    // Remove JSON-like structures that might be embedded
     let cleaned = text
+    
+    // First, try to extract from JSON structure if present
+    if (cleaned.includes('"description"') || cleaned.startsWith("{")) {
+      try {
+        // Try to find and parse JSON
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0])
+            if (parsed.description) {
+              cleaned = parsed.description
+            } else if (parsed.diagnosis?.description) {
+              cleaned = parsed.diagnosis.description
+            } else if (parsed.diagnosis) {
+              // If diagnosis object exists, try to reconstruct description
+              cleaned = JSON.stringify(parsed.diagnosis)
+            }
+          } catch (e) {
+            // If JSON parse fails, extract description field manually
+            const descMatch = cleaned.match(/"description"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+            if (descMatch) {
+              cleaned = descMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n')
+            }
+          }
+        }
+      } catch (e) {
+        // Fall through to other cleaning methods
+      }
+    }
+    
+    // Remove JSON-like structures
+    cleaned = cleaned
       .replace(/^json\s*/i, "") // Remove "json" prefix
       .replace(/^\{[\s\S]*?"description"\s*:\s*"([^"]+)"[\s\S]*\}/, "$1") // Extract description from JSON
       .replace(/\\n/g, "\n") // Convert escaped newlines
       .replace(/\\"/g, '"') // Unescape quotes
+      .replace(/\\/g, "") // Remove other escape characters
+      .replace(/\{[\s\S]*?\}/g, "") // Remove any remaining JSON objects
       .trim()
     
-    // If it still looks like JSON, try to extract meaningful text
-    if (cleaned.startsWith("{") && cleaned.includes('"description"')) {
-      try {
-        const jsonMatch = cleaned.match(/"description"\s*:\s*"([^"]+)"/)
-        if (jsonMatch) {
-          cleaned = jsonMatch[1]
-        }
-      } catch (e) {
-        // If extraction fails, use first 200 chars
-        cleaned = cleaned.substring(0, 200) + "..."
+    // Remove any remaining JSON artifacts
+    cleaned = cleaned
+      .replace(/\{[^}]*\}/g, "") // Remove any remaining JSON objects
+      .replace(/"\s*:\s*"/g, ": ") // Clean up JSON-like structures
+      .replace(/^[^a-zA-Z]*/, "") // Remove leading non-letters
+      .replace(/\s+/g, " ") // Normalize whitespace
+      .trim()
+    
+    // If description is too long and looks malformed, truncate intelligently
+    if (cleaned.length > 1000) {
+      // Find the last complete sentence before 1000 chars
+      const truncated = cleaned.substring(0, 1000)
+      const lastPeriod = truncated.lastIndexOf('.')
+      if (lastPeriod > 500) {
+        cleaned = truncated.substring(0, lastPeriod + 1)
+      } else {
+        cleaned = truncated + "..."
       }
     }
     
@@ -502,6 +590,19 @@ export default function DiagnosisReportPage() {
   // Validate and normalize report data
   const validateAndNormalizeReport = (data: any): DiagnosisReport | null => {
     try {
+      // Clean and extract disease name
+      const rawDescription = data.analysis?.diagnosis?.description || ""
+      const cleanedDesc = cleanDescription(rawDescription)
+      let diseaseName = data.analysis?.diagnosis?.diseaseName || "Unknown Disease"
+      
+      // If disease name is generic error, try to extract from description
+      if ((diseaseName === "Analysis Error" || diseaseName === "Unknown Disease" || !diseaseName) && cleanedDesc) {
+        const extractedName = extractDiseaseName(cleanedDesc)
+        if (extractedName) {
+          diseaseName = extractedName
+        }
+      }
+      
       // Ensure all required fields exist with defaults
       const normalized: DiagnosisReport = {
         reportId: data.reportId || `AG-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`,
@@ -516,12 +617,12 @@ export default function DiagnosisReportPage() {
         },
         analysis: {
           diagnosis: {
-            diseaseName: data.analysis?.diagnosis?.diseaseName || "Unknown Disease",
+            diseaseName: diseaseName,
             severity: data.analysis?.diagnosis?.severity || "Moderate",
             confidence: typeof data.analysis?.diagnosis?.confidence === "number" 
               ? data.analysis.diagnosis.confidence 
               : parseInt(data.analysis?.diagnosis?.confidence) || 50,
-            description: cleanDescription(data.analysis?.diagnosis?.description || ""),
+            description: cleanedDesc || "Unable to analyze the provided images. Please ensure the images are clear and show the crop symptoms.",
             scientificName: data.analysis?.diagnosis?.scientificName,
           },
           environmentalFactors: {
@@ -882,8 +983,8 @@ export default function DiagnosisReportPage() {
                   </span>
                 )}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
-                {report.analysis.diagnosis.description}
+              <p className="text-gray-600 dark:text-gray-400 max-w-2xl whitespace-pre-wrap">
+                {report.analysis.diagnosis.description || "No description available."}
               </p>
             </div>
             <div className="flex-shrink-0 flex flex-col items-end">

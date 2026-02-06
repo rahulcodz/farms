@@ -301,40 +301,264 @@ Now analyze the images and provide the diagnosis report in the exact JSON format
       data.candidates?.[0]?.content?.parts?.[0]?.text ||
       "I apologize, but I couldn't generate a response. Please try again."
 
+    // Helper function to extract and clean JSON from markdown code blocks
+    const extractJSON = (text: string): string | null => {
+      // Remove markdown code blocks (```json ... ```)
+      let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
+      
+      // Find JSON object start
+      const startIndex = cleaned.indexOf("{")
+      if (startIndex === -1) return null
+      
+      // Find the matching closing brace, handling nested objects and arrays
+      let braceCount = 0
+      let inString = false
+      let escapeNext = false
+      let jsonEnd = -1
+      
+      for (let i = startIndex; i < cleaned.length; i++) {
+        const char = cleaned[i]
+        
+        if (escapeNext) {
+          escapeNext = false
+          continue
+        }
+        
+        if (char === "\\") {
+          escapeNext = true
+          continue
+        }
+        
+        if (char === '"' && !escapeNext) {
+          inString = !inString
+          continue
+        }
+        
+        if (!inString) {
+          if (char === "{") braceCount++
+          if (char === "}") {
+            braceCount--
+            if (braceCount === 0) {
+              jsonEnd = i + 1
+              break
+            }
+          }
+        }
+      }
+      
+      if (jsonEnd > startIndex) {
+        return cleaned.substring(startIndex, jsonEnd)
+      }
+      
+      return null
+    }
+
+    // Helper function to repair incomplete JSON
+    const repairJSON = (jsonStr: string): string => {
+      let repaired = jsonStr.trim()
+      
+      // Count open/close braces and brackets
+      const openBraces = (repaired.match(/\{/g) || []).length
+      const closeBraces = (repaired.match(/\}/g) || []).length
+      const openBrackets = (repaired.match(/\[/g) || []).length
+      const closeBrackets = (repaired.match(/\]/g) || []).length
+      
+      // Close unclosed arrays
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        repaired += "]"
+      }
+      
+      // Close unclosed objects
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        repaired += "}"
+      }
+      
+      // Remove trailing commas before closing braces/brackets
+      repaired = repaired.replace(/,(\s*[}\]])/g, "$1")
+      
+      return repaired
+    }
+
     // Try to parse JSON from the response
     let analysisResult
     try {
-      // Extract JSON from response (handle cases where there might be extra text)
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        analysisResult = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error("No JSON found in response")
+      // First, try to extract JSON from markdown code blocks
+      let jsonStr = extractJSON(responseText)
+      
+      if (!jsonStr) {
+        // Fallback: try to find JSON object directly
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          jsonStr = jsonMatch[0]
+        } else {
+          throw new Error("No JSON found in response")
+        }
+      }
+      
+      // Try to parse the JSON
+      try {
+        analysisResult = JSON.parse(jsonStr)
+      } catch (parseError) {
+        // If parsing fails, try to repair incomplete JSON
+        const repaired = repairJSON(jsonStr)
+        try {
+          analysisResult = JSON.parse(repaired)
+        } catch (repairError) {
+          // If repair fails, try to extract partial data
+          throw new Error(`JSON parsing failed: ${parseError instanceof Error ? parseError.message : "Unknown error"}`)
+        }
       }
     } catch (parseError) {
       console.error("Error parsing Gemini response:", parseError)
       console.error("Response text:", responseText)
       
-      // Clean the response text - remove JSON artifacts
-      let cleanedDescription = responseText
-        .replace(/^json\s*/i, "")
-        .replace(/^\{[\s\S]*?"description"\s*:\s*"([^"]+)"[\s\S]*\}/, "$1")
-        .replace(/\\n/g, " ")
-        .replace(/\\"/g, '"')
-        .trim()
-      
-      // If it still contains JSON, extract just the text parts
-      if (cleanedDescription.includes('"diseaseName"')) {
-        try {
-          const diseaseMatch = cleanedDescription.match(/"diseaseName"\s*:\s*"([^"]+)"/)
-          const descMatch = cleanedDescription.match(/"description"\s*:\s*"([^"]+)"/)
-          if (diseaseMatch && descMatch) {
-            cleanedDescription = `${diseaseMatch[1]}: ${descMatch[1].substring(0, 300)}`
-          } else {
-            cleanedDescription = cleanedDescription.substring(0, 300)
+      // Try to extract partial data from incomplete JSON
+      const extractPartialData = (text: string) => {
+        const partial: any = {
+          diagnosis: {
+            diseaseName: "Analysis Error",
+            severity: "Moderate",
+            confidence: 50,
+            description: "",
+            scientificName: "Unknown",
+          },
+          environmentalFactors: {
+            humidity: { value: "Unknown", riskLevel: "MODERATE", impact: "Unable to assess" },
+            temperature: { value: "Unknown", riskLevel: "MODERATE", impact: "Unable to assess" },
+            overallRisk: 50,
+          },
+          impact: {
+            yieldLoss: "Unknown",
+            timeframe: "Unknown",
+            description: "Unable to assess impact",
+          },
+          treatmentPlan: {
+            immediate: [],
+            followUp: [],
+            prevention: [],
+          },
+          recommendations: {},
+        }
+        
+        // Extract disease name
+        const diseaseMatch = text.match(/"diseaseName"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+        if (diseaseMatch) {
+          partial.diagnosis.diseaseName = diseaseMatch[1].replace(/\\"/g, '"').replace(/\\n/g, ' ')
+        }
+        
+        // Extract severity
+        const severityMatch = text.match(/"severity"\s*:\s*"([^"]+)"/)
+        if (severityMatch) {
+          partial.diagnosis.severity = severityMatch[1]
+        }
+        
+        // Extract confidence
+        const confidenceMatch = text.match(/"confidence"\s*:\s*(\d+)/)
+        if (confidenceMatch) {
+          partial.diagnosis.confidence = parseInt(confidenceMatch[1])
+        }
+        
+        // Extract description (handle multi-line)
+        const descMatch = text.match(/"description"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+        if (descMatch) {
+          partial.diagnosis.description = descMatch[1]
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\/g, '')
+            .substring(0, 1000)
+        }
+        
+        // Extract scientific name
+        const scientificMatch = text.match(/"scientificName"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+        if (scientificMatch) {
+          partial.diagnosis.scientificName = scientificMatch[1].replace(/\\"/g, '"')
+        }
+        
+        // Extract environmental factors
+        const humidityMatch = text.match(/"humidity"\s*:\s*\{[^}]*"value"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+        if (humidityMatch) {
+          partial.environmentalFactors.humidity.value = humidityMatch[1].replace(/\\"/g, '"')
+        }
+        
+        const tempMatch = text.match(/"temperature"\s*:\s*\{[^}]*"value"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+        if (tempMatch) {
+          partial.environmentalFactors.temperature.value = tempMatch[1].replace(/\\"/g, '"')
+        }
+        
+        const riskMatch = text.match(/"overallRisk"\s*:\s*(\d+)/)
+        if (riskMatch) {
+          partial.environmentalFactors.overallRisk = parseInt(riskMatch[1])
+        }
+        
+        // Extract impact
+        const yieldMatch = text.match(/"yieldLoss"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+        if (yieldMatch) {
+          partial.impact.yieldLoss = yieldMatch[1].replace(/\\"/g, '"')
+        }
+        
+        // Extract treatment plans (try to get at least immediate actions)
+        const immediateMatch = text.match(/"immediate"\s*:\s*\[([^\]]*)\]/)
+        if (immediateMatch) {
+          try {
+            // Try to parse the immediate array
+            const immediateStr = "[" + immediateMatch[1] + "]"
+            const immediateArray = JSON.parse(immediateStr)
+            if (Array.isArray(immediateArray)) {
+              partial.treatmentPlan.immediate = immediateArray
+            }
+          } catch (e) {
+            // If parsing fails, try to extract individual items
+            const itemMatches = immediateMatch[1].match(/\{[^}]*"title"\s*:\s*"([^"]+)"[^}]*\}/g)
+            if (itemMatches) {
+              partial.treatmentPlan.immediate = itemMatches.slice(0, 3).map((item: string) => {
+                const titleMatch = item.match(/"title"\s*:\s*"([^"]+)"/)
+                const descMatch = item.match(/"description"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+                return {
+                  title: titleMatch ? titleMatch[1] : "Treatment Action",
+                  description: descMatch ? descMatch[1].replace(/\\"/g, '"').substring(0, 200) : "",
+                  timeline: "WITHIN 24 HOURS",
+                  type: "cultural",
+                }
+              })
+            }
           }
-        } catch (e) {
-          cleanedDescription = cleanedDescription.substring(0, 300)
+        }
+        
+        return partial
+      }
+      
+      // Try to extract partial data
+      let partialData = extractPartialData(responseText)
+      
+      // If we got useful data, use it; otherwise use fallback
+      if (partialData.diagnosis.diseaseName !== "Analysis Error" || partialData.diagnosis.description) {
+        analysisResult = partialData
+      } else {
+        // Fallback: create a structured response
+        analysisResult = {
+          diagnosis: {
+            diseaseName: "Analysis Error",
+            severity: "Moderate",
+            confidence: 50,
+            description: "Unable to analyze the provided images. Please ensure the images are clear and show the crop symptoms. Try uploading new images and resubmitting.",
+            scientificName: "Unknown",
+          },
+          environmentalFactors: {
+            humidity: { value: "Unknown", riskLevel: "MODERATE", impact: "Unable to assess" },
+            temperature: { value: "Unknown", riskLevel: "MODERATE", impact: "Unable to assess" },
+            overallRisk: 50,
+          },
+          impact: {
+            yieldLoss: "Unknown",
+            timeframe: "Unknown",
+            description: "Unable to assess impact",
+          },
+          treatmentPlan: {
+            immediate: [],
+            followUp: [],
+            prevention: [],
+          },
+          recommendations: {},
         }
       }
       
