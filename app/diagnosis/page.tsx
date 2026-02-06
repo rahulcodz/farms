@@ -594,9 +594,7 @@ export default function DiagnosisPage() {
                           <Upload className="w-5 h-5 text-[#2F855A] flex-shrink-0" />
                           Evidence Sources
                         </CardTitle>
-                        <span className="text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2.5 py-0.5 rounded-full w-fit">
-                          Step 1 of 3
-                        </span>
+                        
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4 sm:space-y-6">

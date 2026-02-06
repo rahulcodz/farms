@@ -471,24 +471,137 @@ export default function DiagnosisReportPage() {
   }
 
   // Load report data from sessionStorage
+  // Clean description text - remove JSON artifacts and format properly
+  const cleanDescription = (text: string): string => {
+    if (!text) return ""
+    
+    // Remove JSON-like structures that might be embedded
+    let cleaned = text
+      .replace(/^json\s*/i, "") // Remove "json" prefix
+      .replace(/^\{[\s\S]*?"description"\s*:\s*"([^"]+)"[\s\S]*\}/, "$1") // Extract description from JSON
+      .replace(/\\n/g, "\n") // Convert escaped newlines
+      .replace(/\\"/g, '"') // Unescape quotes
+      .trim()
+    
+    // If it still looks like JSON, try to extract meaningful text
+    if (cleaned.startsWith("{") && cleaned.includes('"description"')) {
+      try {
+        const jsonMatch = cleaned.match(/"description"\s*:\s*"([^"]+)"/)
+        if (jsonMatch) {
+          cleaned = jsonMatch[1]
+        }
+      } catch (e) {
+        // If extraction fails, use first 200 chars
+        cleaned = cleaned.substring(0, 200) + "..."
+      }
+    }
+    
+    return cleaned
+  }
+
+  // Validate and normalize report data
+  const validateAndNormalizeReport = (data: any): DiagnosisReport | null => {
+    try {
+      // Ensure all required fields exist with defaults
+      const normalized: DiagnosisReport = {
+        reportId: data.reportId || `AG-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`,
+        timestamp: data.timestamp || new Date().toISOString(),
+        cropInfo: {
+          cropType: data.cropInfo?.cropType || "Unknown",
+          growthStage: data.cropInfo?.growthStage || "Unknown",
+          location: data.cropInfo?.location || "Unknown",
+          soilCondition: data.cropInfo?.soilCondition || "Unknown",
+          weatherCondition: data.cropInfo?.weatherCondition || "Unknown",
+          description: data.cropInfo?.description || "",
+        },
+        analysis: {
+          diagnosis: {
+            diseaseName: data.analysis?.diagnosis?.diseaseName || "Unknown Disease",
+            severity: data.analysis?.diagnosis?.severity || "Moderate",
+            confidence: typeof data.analysis?.diagnosis?.confidence === "number" 
+              ? data.analysis.diagnosis.confidence 
+              : parseInt(data.analysis?.diagnosis?.confidence) || 50,
+            description: cleanDescription(data.analysis?.diagnosis?.description || ""),
+            scientificName: data.analysis?.diagnosis?.scientificName,
+          },
+          environmentalFactors: {
+            humidity: {
+              value: data.analysis?.environmentalFactors?.humidity?.value || "Unknown",
+              riskLevel: data.analysis?.environmentalFactors?.humidity?.riskLevel || "MODERATE",
+              impact: data.analysis?.environmentalFactors?.humidity?.impact || "Unable to assess",
+            },
+            temperature: {
+              value: data.analysis?.environmentalFactors?.temperature?.value || "Unknown",
+              riskLevel: data.analysis?.environmentalFactors?.temperature?.riskLevel || "MODERATE",
+              impact: data.analysis?.environmentalFactors?.temperature?.impact || "Unable to assess",
+            },
+            overallRisk: typeof data.analysis?.environmentalFactors?.overallRisk === "number"
+              ? data.analysis.environmentalFactors.overallRisk
+              : parseInt(data.analysis?.environmentalFactors?.overallRisk) || 50,
+          },
+          impact: {
+            yieldLoss: data.analysis?.impact?.yieldLoss || "Unknown",
+            timeframe: data.analysis?.impact?.timeframe || "Unknown",
+            description: cleanDescription(data.analysis?.impact?.description || ""),
+          },
+          treatmentPlan: {
+            immediate: Array.isArray(data.analysis?.treatmentPlan?.immediate) 
+              ? data.analysis.treatmentPlan.immediate 
+              : [],
+            followUp: Array.isArray(data.analysis?.treatmentPlan?.followUp)
+              ? data.analysis.treatmentPlan.followUp
+              : [],
+            prevention: Array.isArray(data.analysis?.treatmentPlan?.prevention)
+              ? data.analysis.treatmentPlan.prevention
+              : [],
+          },
+          recommendations: {
+            pruning: data.analysis?.recommendations?.pruning,
+            watering: data.analysis?.recommendations?.watering,
+            fertilization: data.analysis?.recommendations?.fertilization,
+            monitoring: data.analysis?.recommendations?.monitoring,
+          },
+        },
+        imageCount: data.imageCount || 0,
+        imagePreviews: data.imagePreviews || {
+          cropImages: [],
+          soilReport: null,
+          weatherImage: null,
+        },
+      }
+      
+      return normalized
+    } catch (error) {
+      console.error("Error validating report data:", error)
+      return null
+    }
+  }
+
   useEffect(() => {
     const reportData = sessionStorage.getItem("diagnosisReport")
     if (reportData) {
       try {
         const parsed = JSON.parse(reportData)
-        setReport(parsed)
-        // Initialize chat with greeting
-        setMessages([
-          {
-            id: "1",
-            text: `Hello! I've analyzed your ${parsed.analysis.diagnosis.diseaseName} report for ${parsed.cropInfo.cropType}. How can I help you implement the treatment plan?`,
-            sender: "ai",
-            timestamp: new Date().toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-            }),
-          },
-        ])
+        const validated = validateAndNormalizeReport(parsed)
+        
+        if (validated) {
+          setReport(validated)
+          // Initialize chat with greeting
+          setMessages([
+            {
+              id: "1",
+              text: `Hello! I've analyzed your ${validated.analysis.diagnosis.diseaseName} report for ${validated.cropInfo.cropType}. How can I help you implement the treatment plan?`,
+              sender: "ai",
+              timestamp: new Date().toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+              }),
+            },
+          ])
+        } else {
+          console.error("Invalid report data structure")
+          router.push("/diagnosis")
+        }
       } catch (error) {
         console.error("Error parsing report data:", error)
         router.push("/diagnosis")
@@ -776,7 +889,11 @@ export default function DiagnosisReportPage() {
             <div className="flex-shrink-0 flex flex-col items-end">
               <div className="text-right mb-1">
                 <span className="block text-sm text-gray-600 dark:text-gray-400">AI Confidence</span>
-                <span className="text-4xl font-bold text-[#2E7D32]">{report.analysis.diagnosis.confidence}%</span>
+                <span className="text-4xl font-bold text-[#2E7D32]">
+                  {typeof report.analysis.diagnosis.confidence === "number" 
+                    ? report.analysis.diagnosis.confidence 
+                    : parseInt(String(report.analysis.diagnosis.confidence)) || 50}%
+                </span>
               </div>
             </div>
           </div>
@@ -921,12 +1038,16 @@ export default function DiagnosisReportPage() {
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-1">
                       <div 
                         className="bg-red-500 h-2.5 rounded-full" 
-                        style={{ width: `${report.analysis.environmentalFactors.overallRisk}%` }}
+                        style={{ width: `${typeof report.analysis.environmentalFactors.overallRisk === "number" 
+                          ? report.analysis.environmentalFactors.overallRisk 
+                          : parseInt(String(report.analysis.environmentalFactors.overallRisk)) || 50}%` }}
                       ></div>
                     </div>
                     <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
                       <span>Low Risk</span>
-                      <span>Severe Risk ({report.analysis.environmentalFactors.overallRisk}%)</span>
+                      <span>Severe Risk ({typeof report.analysis.environmentalFactors.overallRisk === "number" 
+                        ? report.analysis.environmentalFactors.overallRisk 
+                        : parseInt(String(report.analysis.environmentalFactors.overallRisk)) || 50}%)</span>
                     </div>
                   </div>
                 </div>

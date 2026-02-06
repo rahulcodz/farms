@@ -76,7 +76,7 @@ export default function Navigation() {
             </div> */}
             <Link href="/diagnosis">
               <Button className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white px-6 py-2.5 rounded-full font-semibold transition-all shadow-[0_10px_30px_-5px_rgba(46,125,50,0.2)]">
-                Get Started
+                Run Analysis
               </Button>
             </Link>
           </div>

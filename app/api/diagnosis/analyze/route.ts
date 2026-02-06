@@ -315,13 +315,36 @@ Now analyze the images and provide the diagnosis report in the exact JSON format
       console.error("Error parsing Gemini response:", parseError)
       console.error("Response text:", responseText)
       
+      // Clean the response text - remove JSON artifacts
+      let cleanedDescription = responseText
+        .replace(/^json\s*/i, "")
+        .replace(/^\{[\s\S]*?"description"\s*:\s*"([^"]+)"[\s\S]*\}/, "$1")
+        .replace(/\\n/g, " ")
+        .replace(/\\"/g, '"')
+        .trim()
+      
+      // If it still contains JSON, extract just the text parts
+      if (cleanedDescription.includes('"diseaseName"')) {
+        try {
+          const diseaseMatch = cleanedDescription.match(/"diseaseName"\s*:\s*"([^"]+)"/)
+          const descMatch = cleanedDescription.match(/"description"\s*:\s*"([^"]+)"/)
+          if (diseaseMatch && descMatch) {
+            cleanedDescription = `${diseaseMatch[1]}: ${descMatch[1].substring(0, 300)}`
+          } else {
+            cleanedDescription = cleanedDescription.substring(0, 300)
+          }
+        } catch (e) {
+          cleanedDescription = cleanedDescription.substring(0, 300)
+        }
+      }
+      
       // Fallback: create a structured response from the text
       analysisResult = {
         diagnosis: {
           diseaseName: "Analysis Error",
           severity: "Moderate",
           confidence: 50,
-          description: responseText.substring(0, 500),
+          description: cleanedDescription || "Unable to analyze the provided images. Please ensure the images are clear and show the crop symptoms. Try uploading new images and resubmitting.",
           scientificName: "Unknown",
         },
         environmentalFactors: {
